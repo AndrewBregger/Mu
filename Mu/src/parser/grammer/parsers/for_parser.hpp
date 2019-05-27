@@ -2,13 +2,18 @@
 // Created by Andrew Bregger on 2019-05-22.
 //
 
-#ifndef MU_FORPARSER_HPP
-#define MU_FORPARSER_HPP
+#ifndef MU_FOR_PARSER_HPP
+#define MU_FOR_PARSER_HPP
 
+#include "prefix_parser.hpp"
+#include "parser/ast/ast_common.hpp"
+#include "parser/scanner/token.hpp"
 
-class ForParser {
+namespace parse {
+    class ForParser : public PrefixParser {
+    public:
+        ast::ExprPtr lud(mu::Parser &parser, mu::Token token) override;
+    };
+}
 
-};
-
-
-#endif //MU_FORPARSER_HPP
+#endif //MU_FOR_PARSER_HPP

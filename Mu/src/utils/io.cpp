@@ -3,16 +3,27 @@
 //
 
 #include "io.hpp"
+#include <iostream>
 
 #if defined(MU_APPLE)
     #include <unistd.h>
     #include <cstdlib>
+    #include <cstddef>
+    #include <sys/types.h>
+    #include <sys/stat.h>
+    #include <dirent.h>
+    #include <errno.h>
 #else
     #include <windows.h>
 #endif
 
 
 io::Path::Path(const std::string &path) : path(path) {
+    if(is_directory()) {
+        if(this->path.back() == '/') {
+            this->path.pop_back();
+        }
+    }
 }
 
 io::Path::Path(const io::Path &p) : path(p.path) {
@@ -57,12 +68,16 @@ io::Path io::Path::get_relative(const io::Path &to) {
 }
 
 io::Path io::Path::filename() const {
-    u64 index = 0;
     #if defined(MU_APPLE)
-    index = path.find_last_of('/');
+        u64 index = path.find_last_of('/') + 1;
+        u64 ext = path.find_last_of('.');
+
+        if(index == std::string::npos)
+            return *this;
+        else
+           return Path(path.substr(index, ext - index));
     #else
-    // #error __FUNCTION__ is not implemented for this platform
-    index = path.find_last_of('\\');
+//     #error __FUNCTION__ is not implemented for this platform
     #endif
     // auto filename = 
     return io::Path("");
@@ -74,10 +89,14 @@ io::Path io::Path::filename() {
 
 bool io::Path::is_directory() const {
     #if defined(MU_APPLE)
+    struct stat buffer;
+    if(stat (path.c_str(), &buffer) == 0) {
+        return S_ISDIR(buffer.st_mode);
+    }
+    else return false;
     #else
     #error __FUNCTION__ is not implemented for this platform
     #endif
-    return false;
 }
 
 bool io::Path::is_directory() {
@@ -86,10 +105,18 @@ bool io::Path::is_directory() {
 
 bool io::Path::is_file() const {
     #if defined(MU_APPLE)
+    auto dir = opendir(path.c_str());
+    if(dir == nullptr) {
+        struct stat buffer;
+        if(stat (path.c_str(), &buffer) == 0) {
+            return S_ISREG(buffer.st_mode);
+        }
+        else return false;
+    }
+    else return false;
     #else
-    #error __FUNCTION__ is not implemented for this platform
+    #error is_file is not implemented for this platform
     #endif
-    return false;
 }
 
 bool io::Path::is_file() {

@@ -82,7 +82,7 @@ namespace mu {
 
     Token Scanner::next_token() {
         // consumes all of the whitespace
-        while(currentCh and isspace(*currentCh))
+        while(currentCh and isspace(*currentCh) and *currentCh != '\n')
             bump();
        
         // initializes a new token from the currnet point in the text
@@ -260,6 +260,7 @@ namespace mu {
         auto ch = *currentCh;
         bump();
         switch(ch) {
+            SingleToken('\n', Tkn_NewLine);
             SingleToken('(', Tkn_OpenParen);
             SingleToken(')', Tkn_CloseParen);
             SingleToken('[', Tkn_OpenBrace);

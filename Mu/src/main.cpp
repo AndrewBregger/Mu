@@ -4,20 +4,30 @@
 #include "parser/scanner/token.hpp"
 #include "utils/file.hpp"
 
-int main() {
-    Interpreter interp;
+int main(i32 argc, const char** argv) {
+    std::vector<std::string> args;
+    args.reserve(argc);
+
+    for(i32 i = 0; i < argc; ++i)
+        args.emplace_back(argv[i]);
+
+    Interpreter interp(args);
     interp.set_stream(&std::cout);
 
-    mu::Scanner scanner(&interp);
-    io::File file(io::Path("tests/scan_test.mu"));
-    scanner.init(&file);
-    scanner.advance();
+    io::File file(io::Path("tests/simple_expr.mu"));
 
-    mu::Token token;
-    do {
-        token = scanner.token();
-        std::cout << token << std::endl;
-        scanner.advance();
+//    mu::Token token;
+//    mu::Scanner scanner(&interp);
+//    scanner.init(&file);
+//    scanner.advance();
+//
+//    do {
+//        token = scanner.token();
+//        std::cout << token << std::endl;
+//        scanner.advance();
+//    } while(token.kind() != mu::Tkn_Eof or token.kind() == mu::Tkn_Error);
 
-    } while(token.kind() != mu::Tkn_Eof or token.kind() == mu::Tkn_Error);
+    interp.process(&file);
+
+
 }

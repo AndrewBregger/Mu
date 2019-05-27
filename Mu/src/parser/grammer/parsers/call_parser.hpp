@@ -2,8 +2,8 @@
 // Created by Andrew Bregger on 2019-05-22.
 //
 
-#ifndef MU_FUNCTION_PARSER_HPP
-#define MU_FUNCTION_PARSER_HPP
+#ifndef MU_CALL_PARSER_HPP
+#define MU_CALL_PARSER_HPP
 
 #include "infix_parser.hpp"
 #include "parser/ast/ast_common.hpp"
@@ -18,4 +18,4 @@ namespace parse {
 }
 
 
-#endif //MU_FUNCTION_PARSER_HPP
+#endif //MU_CALL_PARSER_HPP

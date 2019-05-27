@@ -6,6 +6,6 @@
 #include "parser/parser.hpp"
 
 ast::ExprPtr parse::CallParser::lud(mu::Parser &parser, ast::ExprPtr left, mu::Token op) {
-    parser.advance();
+//    parser.advance();
     return parser.parse_call(nullptr, op, left);
 }

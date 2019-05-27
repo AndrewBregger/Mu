@@ -100,7 +100,7 @@
     TOKEN_KIND(True, "true") \
     TOKEN_KIND(Ref, "ref") \
     TOKEN_KIND(False, "false") \
-    TOKEN_KIND(Null, "null") \
+    TOKEN_KIND(Nil, "nil") \
     TOKEN_KIND(Self, "self") \
     TOKEN_KIND(SelfType, "Self") \
     TOKEN_KIND(Pub, "pub")
@@ -140,7 +140,8 @@ namespace mu {
 
         static const std::string& get_string(TokenKind kind);
         static TokenKind keyword(const std::string& str);
-		
+
+        inline TokenKind kind() const { return tokenKind; }
 		inline TokenKind kind() { return tokenKind; }
 		inline const Pos& pos() { return position; }
 

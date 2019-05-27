@@ -5,10 +5,17 @@
 #ifndef MU_MODULE_HPP
 #define MU_MODULE_HPP
 
+#include "ast_common.hpp"
 
-class Module {
-
-};
+namespace mu {
+    class Module {
+    public:
+        Module(ast::Ident* name, std::vector<ast::DeclPtr>& items);
+    private:
+        ast::Ident* name;
+        std::vector<ast::DeclPtr> items;
+    };
+}
 
 
 #endif //MU_MODULE_HPP
