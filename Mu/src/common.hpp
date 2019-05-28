@@ -46,4 +46,15 @@ typedef u32 rune;
     #define MU_LINUX
 #endif
 
+#if defined(MU_WIN)
+#if defined(and)
+#undef and
+#endif
+#define and &&
+#if defined(or)
+#undef or
+#endif
+#define or ||
+#endif
+
 #endif

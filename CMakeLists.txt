@@ -3,7 +3,12 @@ project(Mu)
 
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat-security -pedantic -Wall -Wextra")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat-security -pedantic -Wall -Wextra")
+endif()
+
 
 include_directories(Mu/src)
 

@@ -43,8 +43,10 @@ io::Path io::Path::get_absolute() const {
             return Path("");
         }
     #else
-    #error __FUNCTION__ is not implemented for this platform
-    #endif
+        char temp[MAX_PATH];
+        auto size = GetFullPathNameA(path.c_str(), MAX_PATH, temp, nullptr);
+		return Path(temp);
+#endif
 }
 
 io::Path io::Path::get_absolute() {
@@ -55,10 +57,10 @@ io::Path io::Path::get_relative(const io::Path &to) const {
     #if defined(MU_APPLE)
 //        auto abs_this = get_absolute();
         if(to.is_file()) {
-
+			
         }
     #else
-    #error __FUNCTION__ is not implemented for this platform
+    //#error __FUNCTION__ is not implemented for this platform
     #endif
     return io::Path("");
 }
@@ -75,9 +77,16 @@ io::Path io::Path::filename() const {
         if(index == std::string::npos)
             return *this;
         else
-           return Path(path.substr(index, ext - index));
+           return path(path.substr(index, ext - index));
     #else
 //     #error __FUNCTION__ is not implemented for this platform
+        u64 index = path.find_last_of('\\') + 1;
+        u64 ext = path.find_last_of('.');
+
+        if(index == std::string::npos)
+            return *this;
+        else
+           return Path(path.substr(index, ext - index));
     #endif
     // auto filename = 
     return io::Path("");
@@ -95,7 +104,10 @@ bool io::Path::is_directory() const {
     }
     else return false;
     #else
-    #error __FUNCTION__ is not implemented for this platform
+	auto ret = GetFileAttributesA(path.c_str());
+	if (ret == INVALID_FILE_ATTRIBUTES)
+		return false;
+	return ret & FILE_ATTRIBUTE_DIRECTORY;
     #endif
 }
 
@@ -115,7 +127,10 @@ bool io::Path::is_file() const {
     }
     else return false;
     #else
-    #error is_file is not implemented for this platform
+	auto ret = GetFileAttributesA(path.c_str());
+	if (ret == INVALID_FILE_ATTRIBUTES)
+		return false;
+	return ret & FILE_ATTRIBUTE_NORMAL;
     #endif
 }
 
@@ -126,7 +141,7 @@ bool io::Path::is_file() {
 void io::Path::remove_filename() {
     #if defined(MU_APPLE)
     #else
-    #error __FUNCTION__ is not implemented for this platform
+    //#error __FUNCTION__ is not implemented for this platform
     #endif
 
 }
@@ -134,7 +149,7 @@ void io::Path::remove_filename() {
 io::Path io::Path::parent_path() const {
     #if defined(MU_APPLE)
     #else
-    #error __FUNCTION__ is not implemented for this platform
+    //#error __FUNCTION__ is not implemented for this platform
     #endif
     return io::Path("");
 }
