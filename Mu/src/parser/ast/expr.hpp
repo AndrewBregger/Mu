@@ -190,6 +190,14 @@ namespace ast {
             operand(std::move(operand)), name(name) {}
     };
 
+    struct TupleAcessor : public Expr {
+        ExprPtr operand;
+        u64 value;
+
+        TupleAcessor(ExprPtr& operand, u64 value, const mu::Pos& pos) : Expr(ast_tuple_accessor, pos),
+            operand(std::move(operand)), value(value) {}
+    };
+
     struct Method : public Expr {
         ExprPtr operand;
         Ident* name;

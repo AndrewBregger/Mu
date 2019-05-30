@@ -83,7 +83,6 @@
     TOKEN_KIND(While, "while") \
     TOKEN_KIND(Derive, "derive") \
     TOKEN_KIND(Where, "where") \
-    TOKEN_KIND(foriegn, "foriegn") \
     TOKEN_KIND(Inline, "inline") \
 	TOKEN_KIND(Defer, "defer") \
     TOKEN_KIND(For, "for") \
@@ -93,6 +92,7 @@
     TOKEN_KIND(Alignof, "alignof") \
     TOKEN_KIND(Async, "async") \
     TOKEN_KIND(Await, "await") \
+    TOKEN_KIND(Impl, "impl") \
     TOKEN_KIND(Use, "use") \
     TOKEN_KIND(And, "and") \
     TOKEN_KIND(Or, "or") \
@@ -103,7 +103,9 @@
     TOKEN_KIND(Nil, "nil") \
     TOKEN_KIND(Self, "self") \
     TOKEN_KIND(SelfType, "Self") \
-    TOKEN_KIND(Pub, "pub")
+    TOKEN_KIND(Pub, "pub") \
+    TOKEN_KIND(Alias, "alias") \
+    TOKEN_KIND(Trait, "trait")
 
 namespace mu {
 

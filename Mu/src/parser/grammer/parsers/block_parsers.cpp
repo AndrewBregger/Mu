@@ -21,16 +21,19 @@ ast::ExprPtr parse::BlockParsers::lud(mu::Parser &parser, mu::Token token) {
 
 
     auto pos = token.pos();
-    auto elements = parser.many<ast::StmtPtr>([&parser]() {
-        std::cout << parser.current() << std::endl;
-        auto stmt = parser.parse_stmt();
-        return stmt;
-    }, [&parser]() {
-        return !parser.check(mu::Tkn_CloseBracket);
-    }, [&pos](std::vector<ast::StmtPtr>& results, ast::StmtPtr stmt) {
-        mu::Parser::append(results, stmt);
-        pos.extend(stmt->pos());
-    });
+    std::vector<ast::StmtPtr> elements;
+    if(!parser.check(mu::Tkn_CloseBracket)) {
+        parser.many<ast::StmtPtr>([&parser]() {
+            std::cout << parser.current() << std::endl;
+            auto stmt = parser.parse_stmt();
+            return stmt;
+        }, [&parser]() {
+            return !parser.check(mu::Tkn_CloseBracket);
+        }, [&pos, &elements](std::vector<ast::StmtPtr> &, ast::StmtPtr stmt) {
+            mu::Parser::append(elements, stmt);
+            pos.extend(stmt->pos());
+        });
+    }
 
     pos.extend(parser.current().pos());
     parser.expect(mu::Tkn_CloseBracket);

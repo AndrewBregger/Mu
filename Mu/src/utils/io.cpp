@@ -77,7 +77,7 @@ io::Path io::Path::filename() const {
         if(index == std::string::npos)
             return *this;
         else
-           return path(path.substr(index, ext - index));
+           return Path(path.substr(index, ext - index));
     #else
 //     #error __FUNCTION__ is not implemented for this platform
         u64 index = path.find_last_of('\\') + 1;

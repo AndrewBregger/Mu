@@ -261,6 +261,7 @@ namespace mu {
         bump();
         switch(ch) {
             SingleToken('\n', Tkn_NewLine);
+            SingleToken('@', Tkn_At);
             SingleToken('(', Tkn_OpenParen);
             SingleToken(')', Tkn_CloseParen);
             SingleToken('[', Tkn_OpenBrace);

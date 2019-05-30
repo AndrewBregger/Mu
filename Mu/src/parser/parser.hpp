@@ -5,8 +5,10 @@
 #ifndef MU_PARSER_HPP
 #define MU_PARSER_HPP
 
-#include "common.hpp"
+#include <type_traits>
 
+#include "common.hpp"
+#include "parser/ast/decl.hpp"
 #include "ast/ast_common.hpp"
 #include "grammer/grammer.hpp"
 #include "scanner/scanner.hpp"
@@ -53,6 +55,11 @@ namespace mu {
                 result.push_back(val);
         }
 
+        template<typename Ret>
+        static void append_value(std::vector<Ret>& result, Ret val) {
+            result.push_back(val);
+        }
+
         template<typename Ret, typename Fn, typename Cond, typename Process>
         std::vector<Ret> many(Fn fn, Cond cond, Process process = Parser::append<Ret>) {
             std::vector<Ret> result;
@@ -84,13 +91,21 @@ namespace mu {
 
         ast::DeclPtr parse_global(mu::TokenKind kind);
 
-        ast::DeclPtr parse_type_decl(ast::Ident* name);
+        ast::DeclPtr parse_type_decl(ast::Ident *name, const ast::AttributeList &attributess);
 
-        ast::DeclPtr parse_procedure(ast::Ident* name);
+        ast::AttributeList parse_attributes();
+
+        ast::DeclPtr parse_procedure_parameter();
+
+        std::shared_ptr<ast::ProcedureSigniture> parse_procedure_signiture();
+
+        ast::DeclPtr parse_procedure(ast::Ident *name, const ast::AttributeList &attributes);
 
         ast::DeclPtr parse_struct(ast::Ident* name);
 
         ast::DeclPtr parse_type(ast::Ident* name);
+
+        ast::DeclPtr parse_trait(ast::Ident* name);
 
         ast::DeclPtr parse_member_variable();
 
@@ -100,10 +115,13 @@ namespace mu {
 
         ast::DeclPtr parse_generic_and_bounds();
 
+        ast::DeclPtr parse_impl(ast::Ident* name);
 
+        ast::DeclPtr parse_type_member();
 
+        ast::PatternPtr parse_pattern();
 
-        ast::SpecPtr parse_spec();
+        ast::SpecPtr parse_spec(bool allow_infer);
 
     private:
         Interpreter* interp;

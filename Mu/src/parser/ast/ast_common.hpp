@@ -65,7 +65,7 @@ namespace ast {
         // compound literals
         ast_list,       // list literal, [1, 2, 3]
         ast_map,        // map literal, [1:"h", 2:"e", 3:"l", 4:"l,]
-        ast_lambda,     // anonymous function, (x, y) -> x + y
+        ast_lambda,     // anonymous procedure, (x, y) -> x + y
 
         ast_name,       // name reference, x
         ast_unary,      // 1-arity operator, -x
@@ -75,7 +75,7 @@ namespace ast {
         ast_tuple_accessor, // accessing the field of a tuple, x.0
 
         ast_method,     // executing an operation of an object, x.y()
-        ast_call,       // executing a function, x()
+        ast_call,       // executing a procedure, x()
 
         // control flow
         ast_if_expr, //
@@ -109,6 +109,12 @@ namespace ast {
         ast_generics_group,
 
         ast_member_variable,
+        ast_procedure_parameter,
+        ast_self_parameter,
+
+        ast_impl,
+
+        ast_type_member,
 
         // patterns
         ast_ident,
@@ -128,6 +134,10 @@ namespace ast {
         ast_ptr,
         ast_ref,
         ast_mut,
+        ast_self_type,
+        ast_procedure_spec,
+
+        ast_infer_type,     // this is more for type infrencing
     };
 
     extern std::vector<std::string> node_names;
@@ -181,6 +191,12 @@ namespace ast {
     DeclPtr make_decl(Args... args) {
 //        static_assert(std::is_base_of<Type, Decl>::value, "Type must be a base type of Decl");
         return DeclPtr(new Type(args...));
+    }
+
+    template <typename Type, typename... Args>
+    PatternPtr make_pattern(Args... args) {
+//        static_assert(std::is_base_of<Type, Decl>::value, "Type must be a base type of Decl");
+        return PatternPtr(new Type(args...));
     }
 
 

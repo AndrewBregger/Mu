@@ -18,7 +18,11 @@ namespace ast {
     };
 
     struct NamedGeneric : public Spec {
+        Ident* name;
+        std::vector<SpecPtr> params;
 
+        NamedGeneric(Ident* name, std::vector<SpecPtr>& params, const mu::Pos& pos) : Spec(ast_named_generic, pos),
+            name(name), params(std::move(params)) {}
     };
 
     struct TupleSpec : public Spec {
@@ -43,6 +47,14 @@ namespace ast {
             type(std::move(type)) {}
     };
 
+    struct ProcedureSpec : public Spec {
+        std::vector<SpecPtr> params;
+        SpecPtr ret;
+
+        ProcedureSpec(std::vector<SpecPtr>& params, SpecPtr& ret, const mu::Pos& pos) : Spec(ast_procedure_spec, pos),
+            params(std::move(params)), ret(std::move(ret)) {}
+    };
+
     struct PtrSpec : public Spec {
         SpecPtr type;
 
@@ -61,6 +73,14 @@ namespace ast {
         MutSpec(SpecPtr &type, const mu::Pos& pos) : Spec(ast_mut, pos), type(std::move(type)) {}
     };
 
+    struct SelfSpec : public Spec {
+        SelfSpec(const mu::Pos& pos) : Spec(ast_self_type, pos) {}
+    };
+
+    // maps to an empty type spec and _
+    struct InferSpec : public Spec {
+        InferSpec(const mu::Pos& pos) : Spec(ast_infer_type, pos) {}
+    };
 }
 
 #endif //MU_SPECS_HPP

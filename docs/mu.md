@@ -40,9 +40,15 @@ All functions are lambdas. They can be bounded to a name or used anonomously.
 add: (x f32, y f32) f32 = x + y
 
 apply: (f (f32, f32)f32, x f32, y f32) f32 = f(x, y)
-
 apply(add, 1.0, 2.0)
 ```
+#### Function Attributes
+```
+@foriegn("printf"), calling("std")
+printf: [T...](fmt: string, T... args)
+```
+#### Function Modifiers
+
 ### Type Declaration
 
 #### Structures or Product Types
@@ -61,8 +67,6 @@ Vector: struct {f32, f32}
 let vec: Vector {1.0, 2.0}
 vec.0 // 1.0
 vec.1 // 2.0
-
-
 ```
 
 #### Enumerations or Sum Types
@@ -89,32 +93,29 @@ Write: trait {
 ```
 
 A struct can subtype of a type class by the following syntax:
-
 ```
 ReadFile: struct < Read {
-}
-
-read: (self ReadFile, buffer* u32, len u32) u32 {
-    ...
 }
 
 WriteFile: struct < Write {
 }
 
-write: (self WriteFile, buffer *u32, src *u32, len u32) u32 {
-    ...
-}
-
 File: struct < Write, Read {
     fd u32,
 }
+```
 
-read: (self ReadFile, buffer* u32, len u32) u32 {
-    read(self.fd, buffer, len)
-}
+#### Methods
 
-write: (self WriteFile, buffer *u32, src *u32, len u32) u32 {
-    write(self.id, buffer, src, len)
+```
+File: impl {
+    read: (self, buffer *u32, len u32)u32 {
+        read(self.fd, buffer, len)
+    }
+    
+    write: (self, buffer *u32, src *u32, len u32) u32 {
+        write(self.id, buffer, src, len)
+    }
 }
 ```
 
@@ -133,6 +134,11 @@ add: [T](x T, y T) T {
 add: (x, y) {
 }
 
+add: [T](x T, y T) T = x + y
+
+apply: [T](f (T, T)T, x T, y T) T = f(x, y)
+
+apply[f32](add, 1.0, 1.0)
 ```
 
 ### Types
@@ -156,6 +162,7 @@ Baukus Naur Form for type specification.
 <name_type> := <identifier> <generics>
 
 <generics> := [<type_list_and_bounds>]
+            | 
 
 <type_list_and_bounds> := <type_list_and_bounds>, <type_bounds>
                         | <type_bounds>

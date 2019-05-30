@@ -58,9 +58,60 @@ namespace ast {
             init(std::move(init)) {}
     };
 
-    struct Procedure : public Decl {
+    struct Attribute {
+        Ident* attr;
+        std::string value;
 
+        Attribute(Ident* attr, const std::string& val): attr(attr), value(val) {}
+    };
+
+    struct AttributeList {
+        std::vector<Attribute> attributes;
+
+        AttributeList(const std::vector<Attribute>& attributes) : attributes(attributes) {}
+    };
+
+    enum Modifier {
+        Mod_Inline,
+        Mod_Public,
+        Mod_Private
+    };
+
+    struct ProcedureSigniture {
+        std::vector<DeclPtr> parameters;
+        SpecPtr ret;
         DeclPtr generics;
+
+        ProcedureSigniture(std::vector<DeclPtr>& parameters, SpecPtr& ret, DeclPtr& generics) :
+                parameters(std::move(parameters)), ret(std::move(ret)), generics(std::move(generics)) {
+        }
+    };
+
+    struct Procedure : public Decl {
+        Ident* name;
+        std::shared_ptr<ProcedureSigniture> signiture;
+        ExprPtr body;
+        AttributeList attributeList;
+        std::vector<Modifier> modifiers;
+
+        Procedure(Ident* name, std::shared_ptr<ProcedureSigniture>& signiture, ExprPtr& body, AttributeList& attributeList, const std::vector<Modifier>& modifiers,
+                const mu::Pos& pos) : Decl(ast_procedure, pos), name(name), signiture(std::move(signiture)),
+                body(std::move(body)), attributeList(std::move(attributeList)), modifiers(modifiers) {
+        }
+    };
+
+    struct ProcedureParameter : public Decl {
+        PatternPtr pattern;
+        SpecPtr type;
+        ExprPtr init;
+
+        ProcedureParameter(PatternPtr& pattern, SpecPtr& type, ExprPtr& init, const mu::Pos& pos) :
+            Decl(ast_procedure_parameter, pos), pattern(std::move(pattern)), type(std::move(type)), init(std::move(init)) {
+        }
+    };
+
+    struct SelfParameter : public Decl {
+        SelfParameter(const mu::Pos& pos) : Decl(ast_self_parameter, pos) {}
     };
 
     struct Structure : public Decl {
@@ -75,12 +126,23 @@ namespace ast {
     };
 
     struct Type : public Decl {
+        Ident* name;
+        std::vector<SpecPtr> bounds;
+        std::vector<DeclPtr> members;
         DeclPtr generics;
+
+        Type(Ident *name, std::vector<SpecPtr> &bounds, std::vector<DeclPtr> &members, DeclPtr &generics,
+            const mu::Pos &pos) : Decl(ast_type, pos),
+            name(name), bounds(std::move(bounds)), members(std::move(members)), generics(std::move(generics)) {}
     };
 
     struct TypeClass : public Decl {
+        Ident* name;
+        std::vector<DeclPtr> members;
         DeclPtr generics;
 
+        TypeClass(Ident* name, std::vector<DeclPtr>& members, DeclPtr& generics, const mu::Pos& pos) :
+            Decl(ast_type_class, pos), name(name), members(std::move(members)), generics(std::move(generics)) {}
     };
 
     struct Use : public Decl {
@@ -88,7 +150,11 @@ namespace ast {
     };
 
     struct Alias : public Decl {
+        Ident* name;
+        SpecPtr type;
 
+        Alias(Ident* name, SpecPtr& type, const mu::Pos& pos): Decl(ast_alias, pos),
+            name(name), type(std::move(type)) {}
     };
 
 
@@ -132,6 +198,22 @@ namespace ast {
                        std::vector<ExprPtr> &init, Visibility vis, const mu::Pos& pos) :
                        Decl(ast_member_variable, pos), names(std::move(names)), type(std::move(type)),
                        init(std::move(init)), vis(vis) {}
+    };
+
+    struct Impl : public Decl {
+        Ident* name;
+        DeclPtr generics;
+        std::vector<DeclPtr> methods;
+        Impl(Ident* name, std::vector<DeclPtr>& methods, DeclPtr& generics, const mu::Pos& pos) :
+            Decl(ast_impl, pos), name(name), methods(std::move(methods)), generics(std::move(generics)) {}
+    };
+
+    struct TypeMember : public Decl {
+        Ident* name;
+        std::vector<SpecPtr> types;
+
+        TypeMember(Ident* name, std::vector<SpecPtr>& types, const mu::Pos& pos) :
+            Decl(ast_type_member, pos), name(name), types(std::move(types)) {}
     };
 }
 
