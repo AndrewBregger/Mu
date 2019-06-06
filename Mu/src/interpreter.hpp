@@ -51,6 +51,10 @@ public:
         printf(fmt.c_str(), args...);
         out_stream() << std::endl;
     }
+
+    void fatal(const std::string& msg);
+
+    void quit();
 private:
     Context context;
 

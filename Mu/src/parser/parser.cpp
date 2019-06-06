@@ -93,9 +93,7 @@ mu::Module *mu::Parser::parse_module() {
             [this]() {
                 return !check(mu::Tkn_Eof);
             },
-            [](std::vector<ast::DeclPtr>& results, ast::DeclPtr decl) {
-                Parser::append<ast::DeclPtr>(results, decl);
-            }
+            Parser::append<ast::DeclPtr>
         );
 
     auto file = interp->current_file();
@@ -153,18 +151,8 @@ ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
     }
 
     auto expr = parser->lud(*this, token);
-
-    // this handles period accessor and method expression.
-    while(check(mu::Tkn_Period)) {
-        auto parser = grammar.get_infix(current());
-        expr = parser->lud(*this, expr, current());
-    }
-
-    // this handles procedure calls.
-    while(check(mu::Tkn_OpenParen)) {
-        auto parser = grammar.get_infix(current());
-        expr = parser->lud(*this, expr, current());
-    }
+    if(!expr)
+        return expr;
 
     while(prec_min < current().prec()) {
         auto parser = grammar.get_infix(current());
@@ -173,41 +161,69 @@ ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
             break;
         }
         expr = parser->lud(*this, expr, current());
+
+        if(!expr)
+            return expr;
     }
 
     return expr;
 }
 
-ast::ExprPtr mu::Parser::parse_call(ast::Ident *name, mu::Token token, ast::ExprPtr operand) {
+ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::ExprPtr operand) {
     advance();
     std::vector<ast::SpecPtr> type_parameters;
-    auto pos = token.pos();
-    auto actuals = many<ast::ExprPtr>([this]() {
-        if(check(mu::Tkn_Identifier)) {
-            if(check(mu::Tkn_Colon)) {
-                auto ident = current();
-                auto pos = ident.pos();
+    std::vector<ast::ExprPtr> actuals;
+    auto pos = name->pos();
 
-                advance(); // identifier
-                pos.extend(current().pos());
+    if(allow(mu::Tkn_OpenBrace)) {
+        type_parameters = many<ast::SpecPtr>(
+                    [this]() {
+                        return parse_spec(false);
+                    },
+                    [this]() {
+                        bool val = allow(mu::Tkn_Comma);
+                        if(val and check(mu::Tkn_CloseBrace)) {
+                            report(current().pos(), "expecting type following ','");
+                            return false;
+                        }
+                        return val and !check(mu::Tkn_CloseBrace);
+                    },
+                    Parser::append<ast::SpecPtr>
+                );
+        expect(mu::Tkn_CloseBrace);
+    }
 
-                advance(); // colon
+    if(check(mu::Tkn_OpenParen)) {
+        actuals = many<ast::ExprPtr>([this]() {
+            if(check(mu::Tkn_Identifier)) {
+                if(check(mu::Tkn_Colon)) {
+                    auto ident = current();
+                    auto pos = ident.pos();
 
-                auto expr = parse_expr();
-                pos.extend(expr->pos());
+                    advance(); // identifier
+                    pos.extend(current().pos());
 
-                return ast::make_expr<ast::BindingExpr>(ident.ident, expr, pos);
+                    advance(); // colon
+
+                    auto expr = parse_expr();
+                    pos.extend(expr->pos());
+
+                    return ast::make_expr<ast::BindingExpr>(ident.ident, expr, pos);
+                }
             }
-        }
-
-        auto expr = parse_expr();
-        return expr;
-    }, [this]() {
-        return !check(mu::Tkn_CloseParen);
-    }, [&pos](auto& results, ast::ExprPtr expr) {
-        Parser::append<ast::ExprPtr>(results, expr);
-        pos.extend(expr->pos());
-    });
+            auto expr = parse_expr();
+            return expr;
+        }, [this]() {
+            return !check(mu::Tkn_CloseParen);
+        }, [&pos](auto& results, ast::ExprPtr expr) {
+            Parser::append<ast::ExprPtr>(results, expr);
+            pos.extend(expr->pos());
+        });
+    }
+    else {
+        report(current().pos(), "expecting '('");
+        return operand;
+    }
 
     auto [_, valid] = expect(mu::Tkn_CloseParen);
     if(!valid)
@@ -216,12 +232,109 @@ ast::ExprPtr mu::Parser::parse_call(ast::Ident *name, mu::Token token, ast::Expr
     if(name) {
         auto p = operand->pos();
         p.extend(pos);
-        return ast::make_expr<ast::Method>(operand, name, type_parameters, actuals, p);
+        return ast::make_expr<ast::Method>(operand, name, actuals, p);
     }
     else {
         auto p = operand->pos();
         p.extend(pos);
-        return ast::make_expr<ast::Call>(operand, type_parameters, actuals, p);
+        return ast::make_expr<ast::Call>(operand, actuals, p);
+    }
+}
+
+ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
+    passert(current().kind() == mu::Tkn_Identifier);
+    auto save = save_state();
+
+    auto token = current();
+    ast::ExprPtr expr = parse_name();
+    while(check(mu::Tkn_Period))
+        expr = parse_suffix(expr, false);
+
+    if(is_spec and check(mu::Tkn_OpenBracket)) {
+        report(token.pos(), "struct literals are not a valid type");
+    }
+    return expr;
+}
+
+ast::ExprPtr mu::Parser::parse_name() {
+    passert(current().kind() == mu::Tkn_Identifier);
+
+    auto [name, valid] = expect(mu::Tkn_Identifier);
+
+    if(valid) {
+        auto pos = name.pos();
+        std::vector<ast::SpecPtr> type_params;
+        if(check(mu::Tkn_OpenBrace)) {
+            pos.extend(current().pos());
+            expect(mu::Tkn_OpenBrace);
+            type_params = many<ast::SpecPtr>(
+                    [this]() {
+                        return parse_spec(false);
+                    },
+                    [this]() {
+                        bool val = allow(mu::Tkn_Comma);
+                        if(val and check(mu::Tkn_CloseBrace)) {
+                            report(current().pos(), "expecting type following ',' found ']'");
+                            return false;
+                        }
+                        return val;
+                    },
+                    Parser::append<ast::SpecPtr>
+            );
+
+            expect(mu::Tkn_CloseBrace);
+            for(auto& p : type_params)
+                pos.extend(p->pos());
+
+            return ast::make_expr<ast::NameGeneric>(name.ident, type_params, pos);
+        }
+        else
+            return ast::make_expr<ast::Name>(name.ident, name.pos());
+    }
+    return ast::ExprPtr();
+}
+
+ast::ExprPtr mu::Parser::parse_suffix(ast::ExprPtr& expr, bool is_spec) {
+    advance();
+
+    if(check(mu::Tkn_Identifier)) {
+        auto name = current().ident;
+        auto element = parse_name();
+
+        if(check(mu::Tkn_OpenParen)) {
+//            if(is_spec) {
+//                report(expr->pos(), "unexpected '(' in type expression");
+//            }
+            return parse_call(element, current(), expr);
+        }
+        else {
+//            if(!is_spec and expr->kind == ast::ast_name_generic) {
+//                if(!check(mu::Tkn_OpenBracket))
+//                    report(expr->pos(), "");
+//            }
+
+            auto pos = expr->pos();
+            pos.extend(name->pos);
+            return ast::make_expr<ast::Accessor>(expr, name, pos);
+        }
+    }
+    else if(check(mu::Tkn_IntLiteral)) {
+        if(is_spec) {
+            report(current().pos(), "expecting identifier in type expression");
+            return expr;
+        }
+        else {
+            auto index = current();
+            advance();
+
+            auto pos = expr->pos();
+            pos.extend(index.pos());
+            return ast::make_expr<ast::TupleAcessor>(expr, index.integer, pos);
+        }
+    }
+    else {
+        report(current().pos(), "expecting identifier or an integer, found: '%s'", current().get_string().c_str());
+        return expr;
     }
 }
 
@@ -874,33 +987,8 @@ ast::SpecPtr mu::Parser::parse_spec(bool allow_infer) {
 
     switch(token.kind()) {
         case mu::Tkn_Identifier: {
-            auto pos = token.pos();
-            auto name = token.ident;
-            advance();
-            if(allow(mu::Tkn_OpenBrace)) {
-                // parse generic name
-//                report(current().pos(), "generics are not implemented at this time");
-                auto params = many<ast::SpecPtr>(
-                            [this]() {
-                                return parse_spec(false);
-                            },
-                            [this] {
-                                bool val = allow(mu::Tkn_Comma);
-                                if(val and check(mu::Tkn_CloseBrace)) {
-                                    report(current().pos(), "expecting type following comma");
-                                    return false;
-                                }
-                                return val || !check(mu::Tkn_CloseBrace);
-                            },
-                            Parser::append<ast::SpecPtr>
-                        );
-                for(auto& p : params)
-                    if(p)
-                        pos.extend(p->pos());
-                expect(mu::Tkn_CloseBrace);
-                return ast::make_spec<ast::NamedGeneric>(name, params, pos);
-            }
-            return ast::make_spec<ast::Named>(name, name->pos);
+            auto expr = parse_expr_spec(true);
+            return ast::make_spec<ast::ExprSpec>(expr, expr->pos());
         }
         case mu::Tkn_OpenParen: {
             auto pos = token.pos();
@@ -1057,4 +1145,18 @@ ast::DeclPtr mu::Parser::parse_type_member() {
         }
     }
     return ast::DeclPtr();
+}
+
+bool mu::Parser::sync_after_error() {
+    while(!check(mu::Tkn_NewLine)) {
+        switch(current().kind()) {
+            case mu::Tkn_Let:
+            case mu::Tkn_Mut:
+            case mu::Tkn_Use:
+                return true;
+            default:
+                advance(true);
+        }
+    }
+    return true;
 }

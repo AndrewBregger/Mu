@@ -65,9 +65,10 @@ namespace ast {
         // compound literals
         ast_list,       // list literal, [1, 2, 3]
         ast_map,        // map literal, [1:"h", 2:"e", 3:"l", 4:"l,]
-        ast_lambda,     // anonymous procedure, (x, y) -> x + y
+        ast_lambda,     // anonymous procedure, \x, y -> x + y
 
         ast_name,       // name reference, x
+        ast_name_generic, // name with type parameters, x[f32, i32]
         ast_unary,      // 1-arity operator, -x
         ast_binary,     // 2-arity operator, x + y
 
@@ -83,6 +84,11 @@ namespace ast {
         ast_match_expr, //
         ast_for_expr, //
         ast_defer_expr, //
+        ast_match_arm,
+        ast_return,
+
+        ast_struct_expr,
+        ast_tuple_expr,
 
         ast_block,
 
@@ -126,8 +132,7 @@ namespace ast {
 
 
         // type spec
-        ast_named,
-        ast_named_generic,
+        ast_expr_type,
         ast_tuple,
         ast_list_spec,      // [f32; 5]
         ast_list_spec_dyn,  // [f32]

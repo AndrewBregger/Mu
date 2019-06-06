@@ -1,4 +1,1 @@
-Expr : type {
-    Unary(Op, *Expr),
-    Binary(Op, *Expr, *Expr)
-}
+let add = \x f32, y f32: f32 -> x + y

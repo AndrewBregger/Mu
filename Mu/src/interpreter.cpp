@@ -22,6 +22,11 @@ mu::Module *Interpreter::process(io::File *file) {
     return parser.process(file);
 }
 
+void Interpreter::fatal(const std::string &msg) {
+    out_stream() << "Fatal Error: " << msg << std::endl;
+    quit();
+}
+
 ast::Ident *Interpreter::find_name(const std::string &name) {
     auto iter = names.find(name);
     if(iter == names.end())
@@ -36,4 +41,8 @@ ast::Ident *Interpreter::find_name(const std::string &name, const mu::Pos &pos) 
         return names.emplace(name, new ast::Ident(name, pos)).first->second;
     else
         return iter->second;
+}
+
+void Interpreter::quit() {
+    exit(1);
 }

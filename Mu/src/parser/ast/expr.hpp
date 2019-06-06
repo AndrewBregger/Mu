@@ -8,7 +8,6 @@
 #include "ast_common.hpp"
 #include "parser/scanner/token.hpp"
 
-//#include "stmt.hpp"
 #include <cassert>
 #include <memory>
 
@@ -41,6 +40,13 @@ namespace ast {
            out << "name: " << *name << std::endl;
            return out;
         }
+    };
+    
+    struct NameGeneric : Expr {
+        Ident* name;
+        std::vector<ast::SpecPtr> type_params;
+
+        NameGeneric(Ident* name, std::vector<ast::SpecPtr>& type_params, const mu::Pos& pos) : Expr(ast_name_generic, pos), name(name), type_params(std::move(type_params)) {}
     };
 
     struct Integer : public Expr {
@@ -106,6 +112,22 @@ namespace ast {
         explicit Nil(const mu::Pos& pos) : Expr(ast_nil, pos) {}
     };
 
+    struct Lambda : public Expr {
+        std::vector<DeclPtr> parameters;
+        SpecPtr ret;
+        ExprPtr body;
+
+        Lambda(std::vector<DeclPtr>& parameters, SpecPtr& ret, ExprPtr& body, const mu::Pos& pos) :
+            Expr(ast_lambda, pos), parameters(std::move(parameters)), ret(std::move(ret)),
+            body(std::move(body)) {}
+    };
+
+    struct TupleExpr : public Expr {
+        std::vector<ExprPtr> elements;
+
+        TupleExpr(std::vector<ExprPtr>& elements, const mu::Pos& pos) : Expr(ast_tuple_expr, pos),
+            elements(std::move(elements)){}
+    };
 
     struct List : public Expr {
         std::vector<ExprPtr> elements;
@@ -200,13 +222,14 @@ namespace ast {
 
     struct Method : public Expr {
         ExprPtr operand;
-        Ident* name;
-        std::vector<ast::SpecPtr> type_parameters;
+        ExprPtr name;
+        // Ident* name;
+        // std::vector<ast::SpecPtr> type_parameters;
         std::vector<ExprPtr> actuals;
 
-        Method(ExprPtr& operand, Ident* name, const std::vector<SpecPtr>& type_parameters, const std::vector<ExprPtr>& actuals,
-                const mu::Pos& pos): Expr(ast_method, pos), operand(std::move(operand)),
-                name(name), type_parameters(std::move(type_parameters)), actuals(std::move(actuals)) {}
+        Method(ExprPtr& operand, ExprPtr& name, const std::vector<ExprPtr>& actuals, const mu::Pos& pos): Expr(ast_method, pos),
+            operand(std::move(operand)),
+            name(std::move(name)), actuals(std::move(actuals)) {}
     };
 
     struct Block : public Expr {
@@ -231,13 +254,11 @@ namespace ast {
 
     struct Call : public Expr {
         ExprPtr name;
-        std::vector<ast::SpecPtr> type_parameters;
+        // std::vector<ast::SpecPtr> type_parameters;
         std::vector<ExprPtr> actuals;
 
-        Call(ExprPtr &operand, const std::vector<SpecPtr> &type_parameters, const std::vector<ExprPtr> &actuals,
-             const mu::Pos &pos) :
-            Expr(ast_call, pos), name(std::move(operand)), type_parameters(std::move(type_parameters)),
-            actuals(std::move(actuals)) {}
+        Call(ExprPtr &operand, const std::vector<ExprPtr> &actuals,
+             const mu::Pos &pos) : Expr(ast_call, pos), name(std::move(operand)), actuals(std::move(actuals)) {}
     };
 
     struct If : public Expr {
@@ -259,7 +280,20 @@ namespace ast {
 
     };
 
+    struct MatchArm : public Expr {
+       std::vector<PatternPtr> patterns;
+       ExprPtr body;
+
+       MatchArm(std::vector<PatternPtr>& patterns, ExprPtr& body, const mu::Pos& pos) : Expr(ast_match_arm, pos),
+        patterns(std::move(patterns)), body(std::move(body)) {}
+    };
+
     struct Match : public Expr {
+        ExprPtr cond;
+        std::vector<ExprPtr> members;
+
+        Match(ExprPtr& cond, std::vector<ExprPtr>& members, const mu::Pos& pos) : Expr(ast_match_expr, pos),
+            cond(std::move(cond)), members(std::move(members)) {}
     };
 
     struct For : public Expr {
@@ -272,12 +306,26 @@ namespace ast {
             body(std::move(body)) {}
     };
 
+    struct Return : public Expr {
+        ExprPtr body;
+
+        Return(ExprPtr& body, const mu::Pos& pos) : Expr(ast_return, pos), body(std::move(body)) {}
+    };
+
     struct BindingExpr : public Expr {
         Ident* name;
         ExprPtr expr;
 
         BindingExpr(Ident* name, ExprPtr& expr, const mu::Pos& pos) : Expr(ast_expr_binding, pos),
             name(name), expr(std::move(expr)) {}
+    };
+
+    struct StructExpr : public Expr {
+        SpecPtr spec;
+        std::vector<ExprPtr> members;
+
+        StructExpr(SpecPtr& spec, std::vector<ExprPtr>& members, const mu::Pos& pos) : Expr(ast_struct_expr, pos),
+            spec(std::move(spec)), members(std::move(members)) {}
     };
 }
 

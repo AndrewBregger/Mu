@@ -13,6 +13,7 @@ namespace parse {
     class NameParser : public PrefixParser {
     public:
         virtual ast::ExprPtr lud(mu::Parser& parser, mu::Token token);
+        ast::ExprPtr fud(mu::Parser &parser, ast::ExprPtr left, mu::TokenKind token);
     };
 }
 

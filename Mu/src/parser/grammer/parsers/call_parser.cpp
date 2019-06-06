@@ -7,5 +7,6 @@
 
 ast::ExprPtr parse::CallParser::lud(mu::Parser &parser, ast::ExprPtr left, mu::Token op) {
 //    parser.advance();
-    return parser.parse_call(nullptr, op, left);
+    ast::ExprPtr name;
+    return parser.parse_call(name, op, left);
 }

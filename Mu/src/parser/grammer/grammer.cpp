@@ -15,6 +15,10 @@
 #include "parser/grammer/parsers/if_parser.hpp"
 #include "parser/grammer/parsers/for_parser.hpp"
 #include "parser/grammer/parsers/while_parser.hpp"
+#include "parser/grammer/parsers/lambda_parser.hpp"
+#include "parser/grammer/parsers/match_parser.hpp"
+#include "parser/grammer/parsers/defer_parser.hpp"
+#include "parser/grammer/parsers/return_parser.hpp"
 
 //#include "parser/grammar/parsers/match_parser.hpp"
 
@@ -45,6 +49,12 @@ parse::Grammar::Grammar() {
     register_parser(mu::Tkn_If, new IfParser);
     register_parser(mu::Tkn_For, new ForParser);
     register_parser(mu::Tkn_While, new WhileParser);
+    register_parser(mu::Tkn_Defer, new DeferParser);
+    register_parser(mu::Tkn_Match, new MatchParser);
+    register_parser(mu::Tkn_Return, new ReturnParser);
+
+
+    register_parser(mu::Tkn_BackSlash, new LambdaParser);
 
     register_parser(mu::Tkn_Plus, new InfixParser);
     register_parser(mu::Tkn_Minus, new InfixParser);
@@ -67,8 +77,8 @@ parse::Grammar::Grammar() {
     register_parser(mu::Tkn_And, new InfixParser);
     register_parser(mu::Tkn_Or, new InfixParser);
 
-    register_parser(mu::Tkn_Period, new PeriodParser);
-    register_parser(mu::Tkn_OpenParen, new CallParser);
+//    register_parser(mu::Tkn_Period, new PeriodParser);
+//    register_parser(mu::Tkn_OpenParen, new CallParser);
 
 }
 

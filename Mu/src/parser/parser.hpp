@@ -43,6 +43,10 @@ namespace mu {
         template <typename... Args>
         void report(const mu::Pos& pos, const std::string& fmt, Args... args) {
             interp->report_error(pos, fmt, args...);
+
+            if(!sync_after_error()) {
+                interp->fatal("unrecoverable syntax error");
+            }
         }
 
         inline mu::Token current() {
@@ -72,16 +76,24 @@ namespace mu {
 
         mu::Module* parse_module();
 
+        inline mu::Scanner::State save_state() { return scanner.save(); }
+        inline void reset(const mu::Scanner::State& state) { scanner.restore(state); }
+
         // expression parsing
         ast::ExprPtr parse_expr();
 
         ast::ExprPtr parse_expr(i32 prec_min);
 
-        ast::ExprPtr parse_call(ast::Ident* name, Token token, ast::ExprPtr operand = nullptr);
+        ast::ExprPtr parse_call(ast::ExprPtr& name, Token token, ast::ExprPtr operand = nullptr);
+
+        ast::ExprPtr parse_expr_spec(bool is_spec);
+
+        ast::ExprPtr parse_suffix(ast::ExprPtr& expr, bool is_spec = false);
+
+        ast::ExprPtr parse_name();
 
         // stmt parsing
         ast::StmtPtr parse_stmt();
-
 
         ast::DeclPtr parse_toplevel();
 
@@ -122,6 +134,8 @@ namespace mu {
         ast::PatternPtr parse_pattern();
 
         ast::SpecPtr parse_spec(bool allow_infer);
+
+        bool sync_after_error();
 
     private:
         Interpreter* interp;

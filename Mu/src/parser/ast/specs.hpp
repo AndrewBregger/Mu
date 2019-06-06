@@ -12,17 +12,26 @@ namespace ast {
         Spec(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
     };
 
-    struct Named : public Spec {
-        Ident* name;
-        Named(Ident* name, const mu::Pos &pos) : Spec(ast_named, pos), name(name) {}
-    };
+    // struct Named : public Spec {
+    //     Ident* name;
+    //     Named(Ident* name, const mu::Pos &pos) : Spec(ast_named, pos), name(name) {}
+    // };
 
-    struct NamedGeneric : public Spec {
-        Ident* name;
-        std::vector<SpecPtr> params;
+    // struct NamedGeneric : public Spec {
+    //     Ident* name;
+    //     std::vector<SpecPtr> params;
 
-        NamedGeneric(Ident* name, std::vector<SpecPtr>& params, const mu::Pos& pos) : Spec(ast_named_generic, pos),
-            name(name), params(std::move(params)) {}
+    //     NamedGeneric(Ident* name, std::vector<SpecPtr>& params, const mu::Pos& pos) : Spec(ast_named_generic, pos),
+    //         name(name), params(std::move(params)) {}
+    // };
+
+    struct ExprSpec : public Spec {
+        ExprPtr type;
+
+
+        // type must be named expressions such as x, x.y x.y[f32] 
+        ExprSpec(ExprPtr& type, const mu::Pos& pos) : Spec(ast_expr_type, pos), type(std::move(type)) {
+        }
     };
 
     struct TupleSpec : public Spec {
