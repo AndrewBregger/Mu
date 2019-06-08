@@ -28,10 +28,14 @@ parse::Grammar::Grammar() {
     // register all of the parser
 
     register_parser(mu::Tkn_Identifier, new NameParser);
+    register_parser(mu::Tkn_Self, new NameParser);
+    register_parser(mu::Tkn_SelfType, new NameParser);
 
     register_parser(mu::Tkn_Minus, new PrefixOpParser);
     register_parser(mu::Tkn_Tilde, new PrefixOpParser);
     register_parser(mu::Tkn_Bang, new PrefixOpParser);
+    register_parser(mu::Tkn_Ampersand, new PrefixOpParser);
+    register_parser(mu::Tkn_Astrick, new PrefixOpParser);
 
     register_parser(mu::Tkn_IntLiteral, new LiteralParser);
     register_parser(mu::Tkn_FloatLiteral, new LiteralParser);

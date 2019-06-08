@@ -13,6 +13,8 @@ namespace parse {
     class MatchParser : public PrefixParser {
     public:
         ast::ExprPtr lud(mu::Parser &parser, mu::Token token) override;
+
+        ast::ExprPtr parse_arm(mu::Parser& parser);
     };
 }
 

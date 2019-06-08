@@ -39,7 +39,7 @@ All functions are lambdas. They can be bounded to a name or used anonomously.
 ```
 add: (x f32, y f32) f32 = x + y
 
-apply: (f (f32, f32)f32, x f32, y f32) f32 = f(x, y)
+apply: (f (f32, f32)->f32, x f32, y f32) f32 = f(x, y)
 apply(add, 1.0, 2.0)
 ```
 #### Function Attributes
@@ -139,6 +139,39 @@ add: [T](x T, y T) T = x + y
 apply: [T](f (T, T)T, x T, y T) T = f(x, y)
 
 apply[f32](add, 1.0, 1.0)
+```
+
+#### Bounds
+
+Similarly to most modern languages with generics, the generic parameters can be bounded to some subtype. In object oriented langauges this mean the type parameter must be a subtype/subclass or instance of some interface (Java) inorder to satisfy the generic contraints. Since this language is not object oriented, the only subtyping available are traits
+
+```
+add: [T < Arithmetic](x T, y T) T {
+
+}
+
+// Arithmetic is a bounds for type T. When the function is instantiated the type of the type parameters will be checked with their bounds and cause a type error when the bounds are not satisfied.
+
+// standard dyanamic array.
+Vec3: struct < Arithmetic {
+    x f32,
+    y f32,
+    z f32
+}
+
+let v1 = Vec3{1.0, 2.0, 3.0}
+let v2 = Vec3{1.0, 2.0, 3.0}
+
+add(v1, v2)
+
+Vec: struct[T < Copy + Clone] {}
+
+let v1 = Vec[f32].new()
+let v2 = Vec[f32].new()
+
+add(v1, v2) // this will cause a type errow because Vec[f32] doesn't satisfies Arithmetic trait.
+
+
 ```
 
 ### Types

@@ -17,9 +17,13 @@ ast::ExprPtr parse::IfParser::lud(mu::Parser &parser, mu::Token token) {
             auto cond = parser.parse_expr();
 
             if(parser.check(mu::Tkn_OpenBracket)) {
+                parser.push_restriction(mu::NoStructExpr);
                 auto body = parser.parse_expr();
-                if(parser.check(mu::Tkn_NewLine))
-                    parser.advance(true);
+                parser.pop_restriction();
+
+                parser.remove_newlines();
+//                if(parser.check(mu::Tkn_NewLine))
+//                    parser.advance(true);
 
                 auto tok = parser.current();
 

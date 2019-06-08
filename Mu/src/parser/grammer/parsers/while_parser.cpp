@@ -10,10 +10,13 @@ ast::ExprPtr parse::WhileParser::lud(mu::Parser &parser, mu::Token token) {
     parser.passert(token.kind() == mu::Tkn_While);
     parser.advance();
 
+    parser.push_restriction(mu::NoStructExpr);
     auto cond = parser.parse_expr();
+    parser.pop_restriction();
 
     if(parser.check(mu::Tkn_OpenBracket)) {
         auto body = parser.parse_expr();
+
         auto pos = token.pos();
         pos.extend(cond->pos());
         pos.extend(body->pos());

@@ -33,6 +33,24 @@ namespace mu {
         return token_strings[kind];
     }
 
+    const std::string &Token::get_string() {
+        switch(kind()) {
+            case Tkn_Identifier:
+                return ident->value;
+            case Tkn_NewLine: {
+                static std::string val = "Newline";
+                return val;
+            }
+            case Tkn_IntLiteral:
+            case Tkn_FloatLiteral:
+            case Tkn_StringLiteral:
+            case Tkn_CharLiteral:
+                return str;
+            default:
+                return Token::get_string(kind());
+        }
+    }
+
     TokenKind Token::keyword(const std::string& str) {
         auto iter = std::find(token_strings.begin(), token_strings.end(), str);
         if(iter == token_strings.end())

@@ -14,10 +14,6 @@ namespace ast {
         Private,
     };
 
-    struct Decl : public AstNode {
-        Decl(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
-    };
-
     struct Local : public Decl {
         PatternPtr names;
         SpecPtr type;

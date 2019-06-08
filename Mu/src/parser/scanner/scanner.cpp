@@ -22,7 +22,6 @@ namespace mu {
 		return current;
     }
 
-
     bool Scanner::init() {
 
 		// this is unecessary complexity, but I want to try it.
@@ -78,7 +77,6 @@ namespace mu {
         else
             currentCh = nullptr;
     }
-
 
     Token Scanner::next_token() {
         // consumes all of the whitespace
@@ -204,6 +202,7 @@ namespace mu {
 			u64 val = strtoll(temp.c_str(), NULL, 10);
             token = Token(val, savePos);
 		}
+		token.str = temp;
 		return token;
     }
 
@@ -278,7 +277,6 @@ namespace mu {
             DoubleToken('^', Tkn_Carrot, Tkn_CarrotEqual)
             DoubleToken('%', Tkn_Percent, Tkn_PercentEqual)
             DoubleToken('!', Tkn_Bang, Tkn_BangEqual)
-            DoubleToken('=', Tkn_Equal, Tkn_EqualEqual)
             DoubleToken('+', Tkn_Plus, Tkn_PlusEqual)
 
             TripleToken('|', Tkn_Pipe, Tkn_PipeEqual, Tkn_Or)
@@ -287,6 +285,18 @@ namespace mu {
 			FourToken('*', Tkn_Astrick, Tkn_AstrickEqual, Tkn_AstrickAstrick, Tkn_AstrickAstrickEqual)
 			FourToken('>', Tkn_Greater, Tkn_GreaterEqual, Tkn_GreaterGreater, Tkn_GreaterGreaterEqual)
 
+            case '=': {
+                if(check('=')) {
+                    bump();
+                    return Token(Tkn_EqualEqual, savePos);
+                }
+                else if(check('>')) {
+                    bump();
+                    return Token(Tkn_Arrow, savePos);
+                }
+                else
+                    return Token(Tkn_Equal, savePos);
+            }
             case ':': {
                     if(check(':')) {
                         bump();
@@ -383,7 +393,10 @@ namespace mu {
 			std::cout << "This is an error" << std::endl;
 		}
 		// this is fine, Visual Studio is not detecting the constructors generated from a Macro.
-        return Token(temp, savePos);
+
+        auto token = Token(temp, savePos);
+		token.str = temp;
+		return token;
     }
 
     Token Scanner::scan_string() {

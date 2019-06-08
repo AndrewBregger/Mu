@@ -8,10 +8,29 @@
 #include "parser/ast/expr.hpp"
 #include "parser/ast/specs.hpp"
 
-ast::ExprPtr parse::NameParser::lud(mu::Parser &parser, mu::Token) {
-    auto expr = parser.parse_expr_spec(false);
-    if(parser.allow(mu::Tkn_OpenBracket)) {
-        auto spec = ast::make_spec<ast::ExprSpec>(expr, expr->pos());
+ast::ExprPtr parse::NameParser::lud(mu::Parser &parser, mu::Token token) {
+    ast::ExprPtr expr;
+    bool is_self = false;
+    if(token.kind() != mu::Tkn_SelfType) {
+        expr = parser.parse_expr_spec(false);
+    }
+    else {
+        is_self = true;
+        parser.advance();
+    }
+
+    if(is_self and !parser.check(mu::Tkn_OpenBracket)) {
+        parser.report(parser.current().pos(), "'Self' must be followed by '{' in an expression");
+        return expr;
+    }
+
+    if(parser.check_restriction(mu::NoStructExpr) and is_self) {
+        parser.report(token.pos(), "'Self' is not a valid expression, perhaps 'self' was desired");
+        return expr;
+    }
+
+    if(!parser.check_restriction(mu::NoStructExpr) and parser.allow(mu::Tkn_OpenBracket)) {
+        auto spec = (is_self ? ast::make_spec<ast::SelfSpec>(token.pos()) : ast::make_spec<ast::ExprSpec>(expr, expr->pos()));
         auto pos = spec->pos();
         pos.span++;
 

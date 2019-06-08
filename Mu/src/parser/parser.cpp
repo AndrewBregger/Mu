@@ -70,6 +70,27 @@ namespace ast {
 }
 
 mu::Parser::Parser(Interpreter* interp) : interp(interp), scanner(interp) {
+    push_restriction(Default);
+    prev_res.push(Default);
+}
+
+void mu::Parser::push_restriction(mu::Restriction res) {
+    restriction |= res;
+    prev_res.push(res);
+}
+
+bool mu::Parser::check_restriction(mu::Restriction res) {
+    return (restriction & res) == res;
+}
+
+void mu::Parser::pop_restriction() {
+    if(prev_res.size() == 1) {
+        restriction = 0;
+    }
+    else {
+        restriction ^= prev_res.top();
+        prev_res.pop();
+    }
 }
 
 mu::Module *mu::Parser::process(io::File *file) {
@@ -242,11 +263,15 @@ ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::Ex
 }
 
 ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
-    passert(current().kind() == mu::Tkn_Identifier);
     auto save = save_state();
 
     auto token = current();
-    ast::ExprPtr expr = parse_name();
+    ast::ExprPtr expr;
+    if(check(mu::Tkn_Identifier))
+        expr = parse_name();
+    else
+        expr = ast::make_expr<ast::Self>(current().pos());
+
     while(check(mu::Tkn_Period))
         expr = parse_suffix(expr, false);
 
@@ -412,7 +437,7 @@ ast::DeclPtr mu::Parser::parse_variable(mu::TokenKind kind) {
     auto pos = current().pos();
     advance();
 
-    auto pattern = parse_pattern();
+    auto pattern = parse_pattern(false);
     pos.extend(pattern->pos());
     auto type = parse_spec(false);
     pos.extend(type->pos());
@@ -580,7 +605,7 @@ ast::DeclPtr mu::Parser::parse_procedure_parameter() {
         return ast::make_decl<ast::SelfParameter>(self.pos());
     }
     else {
-        auto pattern = parse_pattern();
+        auto pattern = parse_pattern(false);
         auto pos = pattern->pos();
         auto type = parse_spec(false);
         pos.extend(type->pos());
@@ -921,65 +946,158 @@ ast::DeclPtr mu::Parser::parse_generic_and_bounds() {
     }
 }
 
-ast::PatternPtr mu::Parser::parse_pattern() {
+ast::PatternPtr mu::Parser::parse_pattern(bool bind_pattern) {
 
-    auto many_patterns = [this]() {
-        auto pos = current().pos();
-        auto elements = many<ast::PatternPtr>(
-                    [this]() {
-                        return parse_pattern();
+    auto pattern_parser = [this, &bind_pattern]() {
+        auto many_patterns = [this](bool bind) {
+            auto pos = current().pos();
+            auto elements = many<ast::PatternPtr>(
+                    [this, &bind]() {
+                        return parse_pattern(bind);
                     },
                     [this]() {
                         return allow(mu::Tkn_Comma);
                     },
                     Parser::append<ast::PatternPtr>
-                );
+            );
 
-        for(auto& element : elements)
-            pos.extend(element->pos());
+            for (auto &element : elements)
+                pos.extend(element->pos());
 
-        return std::make_pair(elements, pos);
+            return std::make_pair(elements, pos);
+        };
+
+
+        auto token = current();
+        switch (token.kind()) {
+            case mu::Tkn_Underscore: {
+                advance();
+                return ast::make_pattern<ast::IgnorePattern>(token.pos());
+            }
+            case mu::Tkn_Minus: {
+                advance();
+                switch (current().kind()) {
+                    case mu::Tkn_IntLiteral: {
+                        auto p = ast::make_pattern<ast::IntPattern>(-((i64) current().integer), current().pos());
+                        advance();
+                        return p;
+                    }
+                    case mu::Tkn_FloatLiteral: {
+                        auto p = ast::make_pattern<ast::FloatPattern>(-current().floating, current().pos());
+                        advance();
+                        return p;
+                    }
+                    default:
+                        report(current().pos(), "expecting a float or integer following '-' in a pattern");
+                        return ast::PatternPtr();
+                }
+            }
+            case mu::Tkn_IntLiteral:
+                advance();
+                return ast::make_pattern<ast::IntPattern>(((i64) token.integer), token.pos());
+            case mu::Tkn_FloatLiteral:
+                advance();
+                return ast::make_pattern<ast::FloatPattern>(token.floating, token.pos());
+            case mu::Tkn_CharLiteral:
+                advance();
+                return ast::make_pattern<ast::CharPattern>(token.character, token.pos());
+            case mu::Tkn_StringLiteral:
+                advance();
+                return ast::make_pattern<ast::StringPattern>(token.str, token.pos());
+            case mu::Tkn_True:
+            case mu::Tkn_False:
+                advance();
+                return ast::make_pattern<ast::BoolPattern>(token.kind() == mu::Tkn_True, token.pos());
+            case mu::Tkn_OpenParen: {
+                expect(mu::Tkn_OpenParen);
+                auto[elements, pos] = many_patterns(false);
+                expect(mu::Tkn_CloseParen);
+                return ast::make_pattern<ast::TuplePattern>(elements, pos);
+            }
+            case mu::Tkn_OpenBrace: {
+                expect(mu::Tkn_OpenParen);
+                auto[elements, pos] = many_patterns(false);
+                expect(mu::Tkn_CloseBrace);
+                return ast::make_pattern<ast::ListPattern>(elements, pos);
+            }
+            case mu::Tkn_Identifier: {
+                auto name = token.ident;
+                ast::SpecPtr type;
+
+                switch (peek().kind()) {
+                    case mu::Tkn_Period:
+                    case mu::Tkn_OpenBrace:
+                    case mu::Tkn_OpenParen:
+                    case mu::Tkn_OpenBracket: {
+                        type = parse_spec(false);
+
+                        // this must be ( or {
+                        auto last = current();
+
+                        remove_newlines();
+                        // if it is neither the expected
+                        if (last.kind() != mu::Tkn_OpenParen and
+                            last.kind() != mu::Tkn_OpenBracket) {
+                            report(last.pos(), "expecting '(', or '{'");
+                            return ast::PatternPtr();
+                        }
+                        remove_newlines();
+
+                        auto[elements, pos] = many_patterns(last.kind() == mu::Tkn_OpenBracket);
+
+                        if (last.kind() == mu::Tkn_OpenBracket)
+                            expect(mu::Tkn_CloseBracket);
+                        else
+                            expect(mu::Tkn_CloseParen);
+
+                        auto p = type->pos();
+                        pos = p.extend(pos);
+                        if (last.kind() == mu::Tkn_OpenBracket)
+                            return ast::make_pattern<ast::StructPattern>(type, elements, pos);
+                        else
+                            return ast::make_pattern<ast::TypePattern>(type, elements, pos);
+                    }
+                    default:
+                        advance();
+
+                        if (allow(mu::Tkn_Colon)) {
+                            if (bind_pattern) {
+                                auto p = parse_pattern();
+                                auto pos = token.pos();
+                                pos.extend(p->pos());
+                                return ast::make_pattern<ast::BindPattern>(token.ident, p, pos);
+                            } else {
+                                report(current().pos(), "unexpected ':' in pattern");
+                                return ast::PatternPtr();
+                            }
+                        }
+                        return ast::make_pattern<ast::IdentPattern>(name, name->pos);
+                }
+            }
+            default:
+                report(token.pos(), "invalid pattern, expecting identifier, '[', '{'. Found: '%s'",
+                       current().get_string().c_str());
+        }
+        return ast::PatternPtr();
     };
 
+    auto pattern = pattern_parser();
+    if(!pattern)
+        return pattern;
 
-    auto token = current();
-    switch(token.kind()) {
-        case mu::Tkn_OpenParen: {
-            expect(mu::Tkn_OpenParen);
-            auto [elements, pos] = many_patterns();
-            expect(mu::Tkn_CloseParen);
-            return ast::make_pattern<ast::TuplePattern>(elements, pos);
-        }
-        case mu::Tkn_OpenBrace: {
-            expect(mu::Tkn_OpenParen);
-            auto [elements, pos] = many_patterns();
-            expect(mu::Tkn_CloseBrace);
-            return ast::make_pattern<ast::ListPattern>(elements, pos);
-        }
-        case mu::Tkn_Identifier: {
-            auto name = token.ident;
-            ast::SpecPtr type;
-            switch(peek().kind()) {
-                case mu::Tkn_Period:
-                case mu::Tkn_OpenBrace:
-                    type = parse_spec(false);
-                case mu::Tkn_OpenBracket: {
-                    expect(mu::Tkn_OpenBracket);
-                    auto [elements, pos] = many_patterns();
-                    expect(mu::Tkn_CloseBracket);
-                    auto p = type->pos();
-                    pos = p.extend(pos);
-                    return ast::make_pattern<ast::StructPattern>(type, elements, pos);
-                }
-                default:
-                    advance();
-                    return ast::make_pattern<ast::IdentPattern>(name, name->pos);
-            }
-        }
-        default:
-            report(token.pos(), "invalid pattern, expecting identifier, '[', '{'. Found: '%s'", current().get_string().c_str());
+    if(allow(mu::Tkn_PeriodPeriod)) {
+        auto end = pattern_parser();
+        if(!end)
+            return end;
+
+        auto pos = pattern->pos();
+        pos.span += 1;
+        pos.extend(end->pos());
+
+        return ast::make_pattern<ast::RangePattern>(pattern, end, pos);
     }
-    return ast::PatternPtr();
+    else
+        return pattern;
 }
 
 ast::SpecPtr mu::Parser::parse_spec(bool allow_infer) {

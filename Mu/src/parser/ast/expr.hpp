@@ -12,17 +12,6 @@
 #include <memory>
 
 namespace ast {
-    struct Expr : public AstNode {
-        Expr(AstKind k, const mu::Pos& pos) : AstNode(k, pos) {}
-
-        virtual ~Expr() = default;
-
-        virtual std::ostream& operator<< (std::ostream& out) override {
-            AstNode::operator<<(out);
-            return out;
-        }
-    };
-
 
     struct Name : public Expr {
         Ident* name;
@@ -110,6 +99,10 @@ namespace ast {
 
     struct Nil : public Expr {
         explicit Nil(const mu::Pos& pos) : Expr(ast_nil, pos) {}
+    };
+
+    struct Self : public Expr {
+        explicit Self(const mu::Pos& pos): Expr(ast_self_expr, pos) {}
     };
 
     struct Lambda : public Expr {
@@ -297,6 +290,13 @@ namespace ast {
     };
 
     struct For : public Expr {
+        ast::PatternPtr pattern;
+        ast::ExprPtr expr;
+        ast::ExprPtr body;
+
+        For(ast::PatternPtr& pattern, ast::ExprPtr& expr, ast::ExprPtr& body, const mu::Pos& pos) :
+            Expr(ast_expr, pos), pattern(std::move(pattern)), expr(std::move(expr)),
+            body(std::move(body)) {}
     };
 
     struct Defer : public Expr {
@@ -326,6 +326,15 @@ namespace ast {
 
         StructExpr(SpecPtr& spec, std::vector<ExprPtr>& members, const mu::Pos& pos) : Expr(ast_struct_expr, pos),
             spec(std::move(spec)), members(std::move(members)) {}
+    };
+
+    struct Range : public Expr {
+        ExprPtr start;
+        ExprPtr end;
+        ExprPtr step;
+
+        Range(ExprPtr& start, ExprPtr& end, ExprPtr& step, const mu::Pos& pos) : Expr(ast_range, pos),
+            start(std::move(start)), end(std::move(end)), step(std::move(step)) {}
     };
 }
 

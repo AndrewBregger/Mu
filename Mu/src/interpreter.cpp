@@ -13,6 +13,8 @@ Interpreter::Interpreter(const std::vector<std::string> &args) : context(args) {
 
 void Interpreter::setup() {
     // load prelude
+
+    find_name("NewLine", mu::Pos());
 }
 
 mu::Module *Interpreter::process(io::File *file) {

@@ -77,6 +77,7 @@ namespace ast {
 
         ast_method,     // executing an operation of an object, x.y()
         ast_call,       // executing a procedure, x()
+        ast_self_expr,  // self
 
         // control flow
         ast_if_expr, //
@@ -93,6 +94,7 @@ namespace ast {
         ast_block,
 
         ast_expr_binding,
+        ast_range,
 
         // Stmt
         ast_expr,
@@ -130,6 +132,16 @@ namespace ast {
         ast_list_desc,
         ast_type_desc,
 
+        ast_ignore_pattern,
+        ast_bind_pattern,
+        ast_int_pattern,
+        ast_float_pattern,
+        ast_char_pattern,
+        ast_string_pattern,
+        ast_bool_pattern,
+        ast_range_pattern,
+
+
 
         // type spec
         ast_expr_type,
@@ -162,17 +174,42 @@ namespace ast {
        }
     };
 
-    struct Expr;
-    struct Decl;
-    struct Stmt;
-    struct Pattern;
-    struct Spec;
+    struct Decl : public AstNode {
+        Decl(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
+    };
 
-    typedef std::shared_ptr<Expr> ExprPtr;
-    typedef std::shared_ptr<Decl> DeclPtr;
-    typedef std::shared_ptr<Stmt> StmtPtr;
-    typedef std::shared_ptr<Pattern> PatternPtr;
-    typedef std::shared_ptr<Spec> SpecPtr;
+    struct Expr : public AstNode {
+        Expr(AstKind k, const mu::Pos& pos) : AstNode(k, pos) {}
+
+        virtual ~Expr() = default;
+
+        virtual std::ostream& operator<< (std::ostream& out) override {
+            AstNode::operator<<(out);
+            return out;
+        }
+    };
+
+    // these are declared here instead of their files because there were some
+    // instantiation issues with them being forward declared.
+    struct Stmt : public AstNode {
+        Stmt(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
+
+        virtual std::ostream& operator<< (std::ostream& out) = 0;
+    };
+
+    struct Spec : public AstNode {
+        Spec(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
+    };
+
+    struct Pattern : public AstNode {
+        Pattern(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
+    };
+
+    typedef mem::Pr<Expr> ExprPtr;
+    typedef mem::Pr<Decl> DeclPtr;
+    typedef mem::Pr<Stmt> StmtPtr;
+    typedef mem::Pr<Pattern> PatternPtr;
+    typedef mem::Pr<Spec> SpecPtr;
 
     template <typename Type, typename... Args>
     ExprPtr make_expr(Args... args) {

@@ -15,8 +15,8 @@
     TOKEN_KIND(FloatLiteral, "float literal") \
     TOKEN_KIND(StringLiteral, "string literal") \
     TOKEN_KIND(CharLiteral, "character literal") \
-    TOKEN_KIND(Identifier, "__I__") \
-	TOKEN_KIND(NewLine, "__NL__") \
+    TOKEN_KIND(Identifier, "") \
+	TOKEN_KIND(NewLine, "") \
     TOKEN_KIND(OpenParen, "(") \
     TOKEN_KIND(CloseParen, ")") \
     TOKEN_KIND(OpenBrace, "[") \
@@ -37,7 +37,7 @@
     TOKEN_KIND(Hash, "#") \
     TOKEN_KIND(Dollar, "$") \
     TOKEN_KIND(At, "@") \
-    TOKEN_KIND(Arrow, "->") \
+    TOKEN_KIND(Arrow, "=>") \
     TOKEN_KIND(Plus, "+") \
     TOKEN_KIND(Minus, "-") \
     TOKEN_KIND(Slash, "/") \
@@ -138,7 +138,7 @@ namespace mu {
 
         ~Token();
 
-        inline const std::string& get_string() { return Token::get_string(tokenKind); }
+        const std::string& get_string();
 
         static const std::string& get_string(TokenKind kind);
         static TokenKind keyword(const std::string& str);

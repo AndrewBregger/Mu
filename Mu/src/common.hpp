@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <memory>
 
 typedef int8_t  i8;
 typedef int16_t i16;
@@ -56,5 +57,18 @@ typedef u32 rune;
 #endif
 #define or ||
 #endif
+
+namespace mem {
+    template <typename T>
+    class Pr : public std::shared_ptr<T> {
+    public:
+        Pr(T* type = nullptr) : std::shared_ptr<T>(type) {}
+
+        template <typename Ty>
+        Ty* as() {
+            return dynamic_cast<Ty*>(this->get());
+        }
+    };
+}
 
 #endif

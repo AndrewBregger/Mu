@@ -8,9 +8,6 @@
 #include "ast_common.hpp"
 
 namespace ast {
-    struct Spec : public AstNode {
-        Spec(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
-    };
 
     // struct Named : public Spec {
     //     Ident* name;

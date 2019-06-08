@@ -6,6 +6,7 @@
 #define MU_PARSER_HPP
 
 #include <type_traits>
+#include <stack>
 
 #include "common.hpp"
 #include "parser/ast/decl.hpp"
@@ -19,6 +20,10 @@
 
 namespace mu {
     class Module;
+
+    typedef u32 Restriction;
+    const Restriction Default = 0;
+    const Restriction NoStructExpr = 1;
 
     class Parser {
     public:
@@ -131,17 +136,25 @@ namespace mu {
 
         ast::DeclPtr parse_type_member();
 
-        ast::PatternPtr parse_pattern();
+        ast::PatternPtr parse_pattern(bool bind_pattern = false);
 
         ast::SpecPtr parse_spec(bool allow_infer);
 
         bool sync_after_error();
+
+        void push_restriction(Restriction res);
+
+        bool check_restriction(Restriction res);
+
+        void pop_restriction();
 
     private:
         Interpreter* interp;
         Scanner scanner;
         Token t;
         parse::Grammar grammar;
+        Restriction restriction{Default};
+        std::stack<Restriction> prev_res;
     };
 }
 

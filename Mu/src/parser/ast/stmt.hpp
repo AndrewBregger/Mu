@@ -9,11 +9,6 @@
 
 
 namespace ast {
-    struct Stmt : public AstNode {
-        Stmt(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
-
-        virtual std::ostream& operator<< (std::ostream& out) = 0;
-    };
 
     struct ExprStmt : public Stmt {
         ExprPtr expr;
