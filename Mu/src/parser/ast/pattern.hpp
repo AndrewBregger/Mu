@@ -12,94 +12,87 @@ namespace ast {
     struct IdentPattern : public Pattern {
         Ident* name;
 
-        IdentPattern(Ident* name, const mu::Pos& pos) : Pattern(ast_ident, pos), name(name) {}
+        IdentPattern(Ident* name, const mu::Pos& pos);
     };
 
     struct MultiPattern : public Pattern {
         std::vector<PatternPtr> patterns;
 
-        MultiPattern(std::vector<PatternPtr>& patterns, const mu::Pos& pos) : Pattern(ast_multi, pos),
-            patterns(std::move(patterns)) {}
+        MultiPattern(std::vector<PatternPtr>& patterns, const mu::Pos& pos);
     };
 
     struct TuplePattern : public Pattern {
         std::vector<PatternPtr> patterns;
 
-        TuplePattern(std::vector<PatternPtr>& patterns, const mu::Pos& pos) : Pattern(ast_tuple_desc, pos),
-        patterns(std::move(patterns)) {}
+        TuplePattern(std::vector<PatternPtr>& patterns, const mu::Pos& pos);
     };
 
     struct StructPattern : public Pattern {
         SpecPtr type;
         std::vector<PatternPtr> elements;
 
-        StructPattern(SpecPtr& type, std::vector<PatternPtr>& elements, const mu::Pos& pos) :
-            Pattern(ast_struct_desc, pos), type(std::move(type)), elements(std::move(elements)) {}
+        StructPattern(SpecPtr& type, std::vector<PatternPtr>& elements, const mu::Pos& pos);
     };
 
     struct ListPattern : public Pattern {
         std::vector<PatternPtr> elements;
 
-        ListPattern(std::vector<PatternPtr>& elements, const mu::Pos& pos) : Pattern(ast_list_desc, pos),
-        elements(std::move(elements)) {}
+        ListPattern(std::vector<PatternPtr>& elements, const mu::Pos& pos);
     };
 
     struct TypePattern : public Pattern {
         SpecPtr type;
         std::vector<PatternPtr> elements;
 
-        TypePattern(SpecPtr& type, std::vector<PatternPtr>& elements, const mu::Pos& pos) : Pattern(ast_type_desc, pos),
-            type(std::move(type)), elements(std::move(elements)) {}
+        TypePattern(SpecPtr& type, std::vector<PatternPtr>& elements, const mu::Pos& pos);
     };
 
     struct IgnorePattern : public Pattern {
-        IgnorePattern(const mu::Pos& pos) : Pattern(ast_ignore_pattern, pos) {}
+        IgnorePattern(const mu::Pos& pos);
     };
 
     struct BindPattern : public Pattern {
         Ident* name;
         PatternPtr patterns;
 
-        BindPattern(Ident* name, PatternPtr& patterns, const mu::Pos& pos) : Pattern(ast_bind_pattern, pos),
-            name(name), patterns(std::move(patterns)) {}
+        BindPattern(Ident* name, PatternPtr& patterns, const mu::Pos& pos);
     };
 
     struct IntPattern : public Pattern {
         i64 value;
 
-        IntPattern(i64 value, const mu::Pos& pos) : Pattern(ast_int_pattern, pos), value(value) {}
+        IntPattern(i64 value, const mu::Pos& pos);
     };
 
     struct FloatPattern : public Pattern {
         f64 value;
 
-        FloatPattern(f64 value, const mu::Pos& pos) : Pattern(ast_float_pattern, pos), value(value) {}
+        FloatPattern(f64 value, const mu::Pos& pos);
     };
 
     struct CharPattern : public Pattern {
         char value;
 
-        CharPattern(char value, const mu::Pos& pos) : Pattern(ast_char_pattern, pos), value(value) {}
+        CharPattern(char value, const mu::Pos& pos);
     };
 
     struct StringPattern : public Pattern {
         std::string value;
 
-        StringPattern(const std::string& value, const mu::Pos& pos) : Pattern(ast_string_pattern, pos), value(value) {}
+        StringPattern(const std::string& value, const mu::Pos& pos);
     };
 
     struct BoolPattern : public Pattern {
         bool value;
 
-        BoolPattern(bool value, const mu::Pos& pos) : Pattern(ast_bool_pattern, pos), value(value) {}
+        BoolPattern(bool value, const mu::Pos& pos);
     };
 
     struct RangePattern : public Pattern {
         PatternPtr start;
         PatternPtr end;
 
-        RangePattern(PatternPtr& start, PatternPtr& end, const mu::Pos& pos) : Pattern(ast_range_pattern, pos),
-            start(std::move(start)), end(std::move(end)) {}
+        RangePattern(PatternPtr& start, PatternPtr& end, const mu::Pos& pos);
     };
 }
 

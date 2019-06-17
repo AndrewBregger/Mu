@@ -19,8 +19,7 @@
 #include "parser/grammer/parsers/match_parser.hpp"
 #include "parser/grammer/parsers/defer_parser.hpp"
 #include "parser/grammer/parsers/return_parser.hpp"
-
-//#include "parser/grammar/parsers/match_parser.hpp"
+#include "parser/grammer/parsers/cast_parser.hpp"
 
 
 
@@ -80,6 +79,10 @@ parse::Grammar::Grammar() {
 
     register_parser(mu::Tkn_And, new InfixParser);
     register_parser(mu::Tkn_Or, new InfixParser);
+    register_parser(mu::Tkn_Ampersand, new InfixParser);
+    register_parser(mu::Tkn_Pipe, new InfixParser);
+
+    register_parser(mu::Tkn_As, new CastParser);
 
 //    register_parser(mu::Tkn_Period, new PeriodParser);
 //    register_parser(mu::Tkn_OpenParen, new CallParser);

@@ -25,7 +25,7 @@ namespace mu {
             // std::vector<Token> tokenize(io::File* file);
             
             // initializes the scanner with the new file
-            void init(io::File* file);
+            bool init(io::File *file);
     
             // advances to the next token
             void advance();

@@ -1,7 +1,6 @@
 #include "token.hpp"
 #include <vector>
 #include <algorithm>
-#include "interpreter.hpp"
 
 static const std::vector<std::string> token_strings = {
 #define TOKEN_KIND(n, str) str,
@@ -36,7 +35,7 @@ namespace mu {
     const std::string &Token::get_string() {
         switch(kind()) {
             case Tkn_Identifier:
-                return ident->value;
+                return ident->val->value;
             case Tkn_NewLine: {
                 static std::string val = "Newline";
                 return val;
@@ -78,7 +77,7 @@ namespace mu {
                 out << "(" << t.character << ")";
                 break;
             case Tkn_Identifier:
-                out << "(" << t.ident->value << ")";
+                out << "(" << t.ident->val->value << ")";
                 break;
             default:
                 break;
@@ -95,34 +94,38 @@ namespace mu {
     i32 Token::prec() {
         switch(kind()) {
             case Tkn_AstrickAstrick:
-                return 12;
+                return 14;
             case Tkn_Slash:
             case Tkn_Astrick:
             case Tkn_Percent:
-                return 11;
+                return 13;
             case Tkn_Plus:
             case Tkn_Minus:
-                return 10;
+                return 12;
             case Tkn_LessLess:
             case Tkn_GreaterGreater:
-                return 9;
+                return 11;
             case Tkn_EqualEqual:
             case Tkn_BangEqual:
-                return 8;
+                return 10;
             case Tkn_LessEqual:
             case Tkn_GreaterEqual:
             case Tkn_Less:
             case Tkn_Greater:
-                return 7;
+                return 9;
             case Tkn_Ampersand:
-                return 6;
+                return 8;
             case Tkn_Carrot:
-                return 5;
+                return 7;
             case Tkn_Pipe:
-                return 4;
+                return 6;
             case Tkn_And:
-                return 3;
+                return 5;
             case Tkn_Or:
+                return 4;
+            case Tkn_PeriodPeriod:
+                return 3;
+            case Tkn_As:
                 return 2;
         // case Tkn_Question:
         // case Tkn_PeriodPeriod:
@@ -140,7 +143,6 @@ namespace mu {
             case Tkn_PipeEqual:
             case Tkn_CarrotEqual:
             case Tkn_AstrickAstrickEqual:
-            case Tkn_PeriodPeriod:
             case Tkn_Dollar:
                 return 1;
             default:

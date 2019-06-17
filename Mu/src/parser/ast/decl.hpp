@@ -19,8 +19,7 @@ namespace ast {
         SpecPtr type;
         ExprPtr init;
 
-        Local(PatternPtr &names, SpecPtr &type, ExprPtr &init, const mu::Pos& pos)
-                : Decl(ast_local, pos), names(std::move(names)), type(std::move(type)), init(std::move(init)) {}
+        Local(PatternPtr &names, SpecPtr &type, ExprPtr &init, const mu::Pos& pos);
     };
 
     struct Mutable : public Decl {
@@ -28,49 +27,43 @@ namespace ast {
         SpecPtr type;
         ExprPtr init;
 
-        Mutable(PatternPtr &names, SpecPtr &type, ExprPtr &init, mu::Pos& pos)
-                : Decl(ast_local, pos), names(std::move(names)), type(std::move(type)), init(std::move(init)) {}
+        Mutable(PatternPtr &names, SpecPtr &type, ExprPtr &init, mu::Pos& pos);
     };
 
     struct Global : public Decl {
         Ident* name{nullptr};
         SpecPtr type{nullptr};
         ExprPtr init{nullptr};
+        Visibility vis;
 
-        Global(Ident *name, SpecPtr &type, ExprPtr &init, const mu::Pos& pos) : Decl(ast_global, pos),
-              name(name),
-              type(std::move(type)),
-              init(std::move(init)) {}
+        Global(Ident *name, SpecPtr &type, ExprPtr &init, ast::Visibility vis, const mu::Pos& pos);
     };
 
     struct GlobalMut : public Decl{
         Ident* name{nullptr};
         SpecPtr type{nullptr};
         ExprPtr init{nullptr};
+        Visibility vis;
 
-        GlobalMut(Ident *name, SpecPtr &type, ExprPtr &init, const mu::Pos& pos) : Decl(ast_global_mut, pos),
-            name(name),
-            type(std::move(type)),
-            init(std::move(init)) {}
+        GlobalMut(Ident *name, SpecPtr &type, ExprPtr &init, Visibility vis, const mu::Pos& pos);
     };
 
     struct Attribute {
         Ident* attr;
         std::string value;
 
-        Attribute(Ident* attr, const std::string& val): attr(attr), value(val) {}
+        Attribute(Ident* attr, const std::string& val);
     };
 
     struct AttributeList {
         std::vector<Attribute> attributes;
-
-        AttributeList(const std::vector<Attribute>& attributes) : attributes(attributes) {}
+        AttributeList(const std::vector<Attribute>& attributes);
     };
 
     enum Modifier {
         Mod_Inline,
-        Mod_Public,
-        Mod_Private
+//        Mod_Public,
+//        Mod_Private
     };
 
     struct ProcedureSigniture {
@@ -78,9 +71,7 @@ namespace ast {
         SpecPtr ret;
         DeclPtr generics;
 
-        ProcedureSigniture(std::vector<DeclPtr>& parameters, SpecPtr& ret, DeclPtr& generics) :
-                parameters(std::move(parameters)), ret(std::move(ret)), generics(std::move(generics)) {
-        }
+        ProcedureSigniture(std::vector<DeclPtr>& parameters, SpecPtr& ret, DeclPtr& generics);
     };
 
     struct Procedure : public Decl {
@@ -88,12 +79,11 @@ namespace ast {
         std::shared_ptr<ProcedureSigniture> signiture;
         ExprPtr body;
         AttributeList attributeList;
+        Visibility vis;
         std::vector<Modifier> modifiers;
 
         Procedure(Ident* name, std::shared_ptr<ProcedureSigniture>& signiture, ExprPtr& body, AttributeList& attributeList, const std::vector<Modifier>& modifiers,
-                const mu::Pos& pos) : Decl(ast_procedure, pos), name(name), signiture(std::move(signiture)),
-                body(std::move(body)), attributeList(std::move(attributeList)), modifiers(modifiers) {
-        }
+                Visibility vis, const mu::Pos& pos);
     };
 
     struct ProcedureParameter : public Decl {
@@ -101,13 +91,11 @@ namespace ast {
         SpecPtr type;
         ExprPtr init;
 
-        ProcedureParameter(PatternPtr& pattern, SpecPtr& type, ExprPtr& init, const mu::Pos& pos) :
-            Decl(ast_procedure_parameter, pos), pattern(std::move(pattern)), type(std::move(type)), init(std::move(init)) {
-        }
+        ProcedureParameter(PatternPtr& pattern, SpecPtr& type, ExprPtr& init, const mu::Pos& pos);
     };
 
     struct SelfParameter : public Decl {
-        SelfParameter(const mu::Pos& pos) : Decl(ast_self_parameter, pos) {}
+        SelfParameter(const mu::Pos& pos);
     };
 
     struct Structure : public Decl {
@@ -115,10 +103,10 @@ namespace ast {
         std::vector<SpecPtr> bounds;
         std::vector<DeclPtr> members;
         DeclPtr generics;
+        Visibility vis;
 
         Structure(Ident *name, std::vector<SpecPtr> &bounds, std::vector<DeclPtr> &members, DeclPtr &generics,
-                  const mu::Pos &pos) : Decl(ast_structure, pos),
-                    name(name), bounds(std::move(bounds)), members(std::move(members)), generics(std::move(generics)) {}
+                  Visibility vis, const mu::Pos &pos);
     };
 
     struct Type : public Decl {
@@ -126,38 +114,62 @@ namespace ast {
         std::vector<SpecPtr> bounds;
         std::vector<DeclPtr> members;
         DeclPtr generics;
+        Visibility vis;
 
         Type(Ident *name, std::vector<SpecPtr> &bounds, std::vector<DeclPtr> &members, DeclPtr &generics,
-            const mu::Pos &pos) : Decl(ast_type, pos),
-            name(name), bounds(std::move(bounds)), members(std::move(members)), generics(std::move(generics)) {}
+            Visibility vis, const mu::Pos &pos);
     };
 
     struct TypeClass : public Decl {
         Ident* name;
         std::vector<DeclPtr> members;
         DeclPtr generics;
+        Visibility vis;
 
-        TypeClass(Ident* name, std::vector<DeclPtr>& members, DeclPtr& generics, const mu::Pos& pos) :
-            Decl(ast_type_class, pos), name(name), members(std::move(members)), generics(std::move(generics)) {}
+        TypeClass(Ident* name, std::vector<DeclPtr>& members, DeclPtr& generics, Visibility vis, const mu::Pos& pos);
+    };
+
+    struct UsePath : public Decl {
+        SPath path;
+        bool all_names{false};
+
+        UsePath(const SPath& path, bool all_names, const mu::Pos& pos);
+    };
+
+    struct UsePathList : public Decl {
+        SPath base;
+        std::vector<DeclPtr> subpaths;
+
+        UsePathList(const SPath& path, std::vector<DeclPtr>& subpaths, const mu::Pos& pos);
+    };
+
+    struct UsePathAlias : public Decl {
+        SPath path;
+        ast::Ident* alias;
+
+        UsePathAlias(const SPath& path, Ident* alias, const mu::Pos& pos);
     };
 
     struct Use : public Decl {
+        DeclPtr use_path;
+        Visibility vis;
 
+        Use(DeclPtr& use_path, Visibility vis, const mu::Pos& pos);
     };
 
     struct Alias : public Decl {
         Ident* name;
         SpecPtr type;
+        Visibility vis;
 
-        Alias(Ident* name, SpecPtr& type, const mu::Pos& pos): Decl(ast_alias, pos),
-            name(name), type(std::move(type)) {}
+        Alias(Ident* name, SpecPtr& type, Visibility vis, const mu::Pos& pos);
     };
 
 
     struct Generic : public Decl {
         Ident* name;
 
-        Generic(Ident* name, const mu::Pos& pos) : Decl(ast_generic, pos), name(name) {}
+        Generic(Ident* name, const mu::Pos& pos);
     };
 
     struct BoundedGeneric;
@@ -166,22 +178,19 @@ namespace ast {
         std::vector<ast::SpecPtr> type_bounds;
         BoundedGeneric* parent;
 
-        GenericBounds(std::vector<ast::SpecPtr>& type_bounds, BoundedGeneric* parent) :
-                type_bounds(std::move(type_bounds)), parent(parent) {}
+        GenericBounds(std::vector<ast::SpecPtr>& type_bounds, BoundedGeneric* parent);
     };
     struct BoundedGeneric : public Decl {
         Ident* name;
         GenericBounds bounds;
 
-        BoundedGeneric(Ident* name, GenericBounds& bounds, const mu::Pos& pos) : Decl(ast_bounded_generic, pos),
-            name(name), bounds(std::move(bounds)) {}
+        BoundedGeneric(Ident* name, GenericBounds& bounds, const mu::Pos& pos);
     };
 
     struct GenericGroup : public Decl {
         std::vector<DeclPtr> generics;
 
-        GenericGroup(std::vector<DeclPtr>& generics, const mu::Pos& pos) : Decl(ast_generics_group, pos),
-            generics(std::move(generics)) {}
+        GenericGroup(std::vector<DeclPtr>& generics, const mu::Pos& pos);
     };
 
     struct MemberVariable : public Decl {
@@ -191,25 +200,28 @@ namespace ast {
         Visibility vis{Visibility::Private};
 
         MemberVariable(std::vector<Ident *> &names, SpecPtr &type,
-                       std::vector<ExprPtr> &init, Visibility vis, const mu::Pos& pos) :
-                       Decl(ast_member_variable, pos), names(std::move(names)), type(std::move(type)),
-                       init(std::move(init)), vis(vis) {}
+                       std::vector<ExprPtr> &init, Visibility vis, const mu::Pos& pos);
     };
 
     struct Impl : public Decl {
         Ident* name;
         DeclPtr generics;
         std::vector<DeclPtr> methods;
-        Impl(Ident* name, std::vector<DeclPtr>& methods, DeclPtr& generics, const mu::Pos& pos) :
-            Decl(ast_impl, pos), name(name), methods(std::move(methods)), generics(std::move(generics)) {}
+        Impl(Ident* name, std::vector<DeclPtr>& methods, DeclPtr& generics, const mu::Pos& pos);
     };
 
     struct TypeMember : public Decl {
         Ident* name;
         std::vector<SpecPtr> types;
 
-        TypeMember(Ident* name, std::vector<SpecPtr>& types, const mu::Pos& pos) :
-            Decl(ast_type_member, pos), name(name), types(std::move(types)) {}
+        TypeMember(Ident* name, std::vector<SpecPtr>& types, const mu::Pos& pos);
+    };
+
+    struct TraitElementType : public Decl {
+        Ident* name;
+        SpecPtr init; // default type if one is not provided
+
+        TraitElementType(Ident* name, SpecPtr& init, const mu::Pos& pos);
     };
 }
 

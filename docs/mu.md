@@ -84,6 +84,8 @@ Expr: type {
 #### Type Class (Type Attributes)
 ```
 Read: trait {
+    Elem: Type // this is an alias to a known type (placeholder in Rust)
+    
     read fn(self, buffer *u32, len u32) u32
 }
 

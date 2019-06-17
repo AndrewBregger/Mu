@@ -12,34 +12,34 @@ namespace ast {
 
     struct ExprStmt : public Stmt {
         ExprPtr expr;
-        ExprStmt(ExprPtr& expr, const mu::Pos& pos) : Stmt(ast_expr, pos), expr(std::move(expr)) {}
+        ExprStmt(ExprPtr& expr, const mu::Pos& pos);
 
 
-        virtual std::ostream&operator<< (std::ostream& out) {
-            AstNode::operator<<(out) << std::endl;
-            expr->operator<<(out);
-            return out;
-        }
+//        virtual std::ostream&operator<< (std::ostream& out) {
+//            AstNode::operator<<(out) << std::endl;
+//            expr->operator<<(out);
+//            return out;
+//        }
     };
 
     struct DeclStmt : public Stmt {
         DeclPtr decl;
-        DeclStmt(DeclPtr& decl, const mu::Pos& pos) : Stmt(ast_decl, pos), decl(std::move(decl)) {}
+        DeclStmt(DeclPtr& decl, const mu::Pos& pos);
 
-        virtual std::ostream&operator<< (std::ostream& out) {
-            AstNode::operator<<(out) << std::endl;
-            // decl->operator<<(out);
-            return out;
-        }
+//        virtual std::ostream&operator<< (std::ostream& out) {
+//            AstNode::operator<<(out) << std::endl;
+//            // decl->operator<<(out);
+//            return out;
+//        }
     };
 
     struct EmptyStmt : public Stmt {
-        EmptyStmt(const mu::Pos pos) : Stmt(ast_empty, pos) {}
+        EmptyStmt(const mu::Pos pos);
 
-        virtual std::ostream&operator<< (std::ostream& out) {
-            AstNode::operator<<(out) << std::endl;
-            return out;
-        }
+//        virtual std::ostream&operator<< (std::ostream& out) {
+//            AstNode::operator<<(out) << std::endl;
+//            return out;
+//        }
     };
 }
 

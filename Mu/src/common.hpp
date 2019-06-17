@@ -6,6 +6,7 @@
 #include <map>
 #include <string>
 #include <memory>
+#include <utility>
 
 typedef int8_t  i8;
 typedef int16_t i16;
@@ -66,9 +67,30 @@ namespace mem {
 
         template <typename Ty>
         Ty* as() {
+            return const_cast<const Pr<T>&>(*this).as<Ty>();
+        }
+
+        template <typename Ty>
+        Ty* as() const {
             return dynamic_cast<Ty*>(this->get());
         }
     };
 }
+
+namespace std {
+    template<typename T>
+    struct hash<mem::Pr<T>> {
+        u64 operator() (const mem::Pr<T>& ptr) const {
+            std::hash<T*> hasher;
+            return hasher(ptr.get());
+        }
+    };
+}
+
+struct Atom {
+    std::string value;
+
+    Atom(const std::string& value) : value(value) {}
+};
 
 #endif

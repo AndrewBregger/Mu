@@ -9,9 +9,9 @@ namespace mu {
 
     Scanner::~Scanner() = default;
 
-    void Scanner::init(io::File* file) {
+    bool Scanner::init(io::File *file) {
         this->file = file;
-        init();
+        return init();
     }
 
     void Scanner::advance() {
@@ -32,7 +32,7 @@ namespace mu {
         position = mu::Pos(1, 0, 0, file->id());
 
 		if (!file->load()) {
-			interp->report_error(this->position, "Failed to load file: '%s'", file->name().c_str());
+			interp->report_error(this->position, "Failed to load file: '%s'", file->path().string().c_str());
 			return false;
 		}
 	
@@ -44,6 +44,10 @@ namespace mu {
         // std::cout << "The file has been loaded" << std::endl;
 
         source = &file->value();
+
+		if(source->empty())
+		    return false;
+
         currentCh = &source->at(index);
         if(index + 1 >= source->size())
             nextCh = nullptr;
@@ -110,9 +114,9 @@ namespace mu {
         TokenKind kind = Token::keyword(temp);
 
         if(kind == Tkn_None) {
-			auto s = interp->find_name(temp, savePos);
+			auto s = interp->find_name(temp);
 			// this is fine, Visual Studio is not detecting the constructors generated from a Macro.
-			return Token(s, savePos);
+			return Token(new ast::Ident(s, savePos), savePos);
         }
         else {
             return Token(kind, savePos);

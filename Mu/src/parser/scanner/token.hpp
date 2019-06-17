@@ -76,6 +76,7 @@
     TOKEN_KIND(Let, "let") \
     TOKEN_KIND(Mut, "mut") \
     TOKEN_KIND(Type, "type") \
+    TOKEN_KIND(TypeLit, "Type") \
     TOKEN_KIND(Struct, "struct") \
     TOKEN_KIND(Break, "break") \
     TOKEN_KIND(Continue, "continue") \
@@ -105,12 +106,14 @@
     TOKEN_KIND(SelfType, "Self") \
     TOKEN_KIND(Pub, "pub") \
     TOKEN_KIND(Alias, "alias") \
-    TOKEN_KIND(Trait, "trait")
+    TOKEN_KIND(Trait, "trait") \
+    TOKEN_KIND(UnitName, "Unit") \
+    TOKEN_KIND(As, "as")
+
+struct Atom;
 
 namespace mu {
 
-    struct String;
-    
     enum TokenKind {
 #define TOKEN_KIND(n, ...) Tkn_##n,
         TOKEN_KINDS

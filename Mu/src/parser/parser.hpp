@@ -31,7 +31,7 @@ namespace mu {
 
         bool advance(bool ignore_newline = false);
 
-        Module* process(io::File* file);
+        ast::ModuleFile* process(io::File* file);
 
         std::pair<Token, bool> expect(TokenKind tok);
 
@@ -45,11 +45,11 @@ namespace mu {
 
         void remove_newlines();
 
-        template <typename... Args>
+        template <bool r = true, typename... Args>
         void report(const mu::Pos& pos, const std::string& fmt, Args... args) {
             interp->report_error(pos, fmt, args...);
 
-            if(!sync_after_error()) {
+            if(r and !sync_after_error()) {
                 interp->fatal("unrecoverable syntax error");
             }
         }
@@ -79,7 +79,7 @@ namespace mu {
             return result;
         }
 
-        mu::Module* parse_module();
+        ast::ModuleFile * parse_module();
 
         inline mu::Scanner::State save_state() { return scanner.save(); }
         inline void reset(const mu::Scanner::State& state) { scanner.restore(state); }
@@ -106,9 +106,9 @@ namespace mu {
 
         ast::DeclPtr parse_variable(mu::TokenKind kind);
 
-        ast::DeclPtr parse_global(mu::TokenKind kind);
+        ast::DeclPtr parse_global(mu::TokenKind kind, ast::Visibility vis);
 
-        ast::DeclPtr parse_type_decl(ast::Ident *name, const ast::AttributeList &attributess);
+        ast::DeclPtr parse_type_decl(ast::Ident *name, const ast::AttributeList &attributes, ast::Visibility vis);
 
         ast::AttributeList parse_attributes();
 
@@ -116,13 +116,13 @@ namespace mu {
 
         std::shared_ptr<ast::ProcedureSigniture> parse_procedure_signiture();
 
-        ast::DeclPtr parse_procedure(ast::Ident *name, const ast::AttributeList &attributes);
+        ast::DeclPtr parse_procedure(ast::Ident *name, const ast::AttributeList &attributes, ast::Visibility vis);
 
-        ast::DeclPtr parse_struct(ast::Ident* name);
+        ast::DeclPtr parse_struct(ast::Ident *name, ast::Visibility vis);
 
-        ast::DeclPtr parse_type(ast::Ident* name);
+        ast::DeclPtr parse_type(ast::Ident *name, ast::Visibility vis);
 
-        ast::DeclPtr parse_trait(ast::Ident* name);
+        ast::DeclPtr parse_trait(ast::Ident *name, ast::Visibility vis);
 
         ast::DeclPtr parse_member_variable();
 
@@ -132,13 +132,19 @@ namespace mu {
 
         ast::DeclPtr parse_generic_and_bounds();
 
-        ast::DeclPtr parse_impl(ast::Ident* name);
+        ast::DeclPtr parse_impl(ast::Ident *name, ast::Visibility vis);
 
         ast::DeclPtr parse_type_member();
+
+        ast::DeclPtr parse_use(ast::Visibility vis);
+
+        ast::DeclPtr parse_usepath();
 
         ast::PatternPtr parse_pattern(bool bind_pattern = false);
 
         ast::SpecPtr parse_spec(bool allow_infer);
+
+        ast::Visibility parse_visability();
 
         bool sync_after_error();
 

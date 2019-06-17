@@ -93,10 +93,12 @@ void mu::Parser::pop_restriction() {
     }
 }
 
-mu::Module *mu::Parser::process(io::File *file) {
-    scanner.init(file);
+ast::ModuleFile *mu::Parser::process(io::File *file) {
+    if(!scanner.init(file))
+        return nullptr;
     advance();
-    return parse_module();
+//    return parse_module();
+    return nullptr;
 }
 
 void mu::Parser::passert(bool term) {
@@ -105,7 +107,10 @@ void mu::Parser::passert(bool term) {
     }
 }
 
-mu::Module *mu::Parser::parse_module() {
+ast::ModuleFile * mu::Parser::parse_module() {
+
+    auto pos = current().pos();
+    pos.span = 0;
 
     auto decls = many<ast::DeclPtr>(
             [this]() {
@@ -117,12 +122,15 @@ mu::Module *mu::Parser::parse_module() {
             Parser::append<ast::DeclPtr>
         );
 
+    for(auto& d : decls)
+        pos.extend(d->pos());
+
     auto file = interp->current_file();
     auto name = file->name();
-    auto mname = interp->find_name(name, Pos(0, 0, 0, file->id()));
+    auto mname = interp->find_name(name);
 
     std::cout << "Num Decls: " << decls.size() << std::endl;
-    return new Module(mname, decls);
+    return new ast::ModuleFile(new ast::Ident(mname, mu::Pos(0, 0, 0, file->id())), decls, pos);
 }
 
 bool mu::Parser::advance(bool ignore_newline) {
@@ -400,29 +408,39 @@ ast::DeclPtr mu::Parser::parse_decl(mu::Token token, bool toplevel) {
 
     ast::DeclPtr decl = nullptr;
     ast::AttributeList attrs({});
+    if(check(mu::Tkn_At)) {
+        attrs = parse_attributes();
+        auto[_, valid] = expect(mu::Tkn_NewLine);
+        if (!valid)
+            return nullptr;
+    }
+
+    auto vis = parse_visability();
+
     switch(token.kind()) {
-        case mu::Tkn_At: {
-            attrs = parse_attributes();
-            auto[_, valid] = expect(mu::Tkn_NewLine);
-            if (!valid)
-                return nullptr;
-        }
         case mu::Tkn_Identifier: {
             auto [name, _] = expect(mu::Tkn_Identifier);
             auto [token, valid] = expect(mu::Tkn_Colon);
             if(valid)
-                decl = parse_type_decl(name.ident, attrs);
+                decl = parse_type_decl(name.ident, attrs, vis);
             else {
                 report(token.pos(), "expecting ':' following identifier in type declaration");
                 break;
             }
         } break;
+        case mu::Tkn_Use: {
+            decl = parse_use(vis);
+        } break;
         case mu::Tkn_Let:
         case mu::Tkn_Mut:
             if(toplevel)
-                decl = parse_global(token.kind());
-            else
+                decl = parse_global(token.kind(), vis);
+            else {
+                if(vis == ast::Public) {
+                    report<false>(current().pos(), "'let' and 'mut' following 'pub' is only allowed in global scope");
+                }
                 decl = parse_variable(token.kind());
+            }
     }
     // if we are at the end of the file do not expect a new line
     // however, consume them if some are there.
@@ -456,7 +474,7 @@ ast::DeclPtr mu::Parser::parse_variable(mu::TokenKind kind) {
     }
 }
 
-ast::DeclPtr mu::Parser::parse_global(mu::TokenKind kind) {
+ast::DeclPtr mu::Parser::parse_global(mu::TokenKind kind, ast::Visibility vis) {
     passert(current().kind() == kind);
 
     auto pos = current().pos();
@@ -488,24 +506,24 @@ ast::DeclPtr mu::Parser::parse_global(mu::TokenKind kind) {
                 pos.extend(init->pos());
         }
         if(kind == mu::Tkn_Let)
-            return ast::make_decl<ast::Global>(name.ident, spec, init, pos);
+            return ast::make_decl<ast::Global>(name.ident, spec, init, vis, pos);
         else
-            return ast::make_decl<ast::GlobalMut>(name.ident, spec, init, pos);
+            return ast::make_decl<ast::GlobalMut>(name.ident, spec, init, vis, pos);
     }
     else return nullptr;
 }
 
-ast::DeclPtr mu::Parser::parse_type_decl(ast::Ident *name, const ast::AttributeList &attributes) {
+ast::DeclPtr mu::Parser::parse_type_decl(ast::Ident *name, const ast::AttributeList &attributes, ast::Visibility vis) {
     auto token = current();
     switch(token.kind()) {
         case mu::Tkn_Struct:
-            return parse_struct(name);
+            return parse_struct(name, vis);
         case mu::Tkn_Type:
-            return parse_type(name);
+            return parse_type(name, vis);
         case mu::Tkn_Impl:
-            return parse_impl(name);
+            return parse_impl(name, vis);
         case mu::Tkn_Trait:
-            return parse_trait(name);
+            return parse_trait(name, vis);
         case mu::Tkn_Alias: {
             advance(false);
             auto spec = parse_spec(false);
@@ -513,14 +531,14 @@ ast::DeclPtr mu::Parser::parse_type_decl(ast::Ident *name, const ast::AttributeL
             pos.extend(token.pos());
             pos.extend(spec->pos());
 
-            return ast::make_decl<ast::Alias>(name, spec, pos);
+            return ast::make_decl<ast::Alias>(name, spec, vis, pos);
         }
         default:
-            return parse_procedure(name, attributes);
+            return parse_procedure(name, attributes, vis);
     }
 }
 
-ast::DeclPtr mu::Parser::parse_trait(ast::Ident *name) {
+ast::DeclPtr mu::Parser::parse_trait(ast::Ident *name, ast::Visibility vis) {
     auto pos = name->pos;
     passert(current().kind() == mu::Tkn_Trait);
     pos.extend(current().pos());
@@ -547,7 +565,20 @@ ast::DeclPtr mu::Parser::parse_trait(ast::Ident *name) {
                         auto[token, valid] = expect(mu::Tkn_Identifier);
                         if (valid) {
                             expect(mu::Tkn_Colon);
-                            return parse_procedure(token.ident, ast::AttributeList({}));
+                            if(allow(mu::Tkn_TypeLit)) {
+                                ast::SpecPtr def;
+                                auto pos = token.pos();
+                                pos.span += 1;
+                                if(check(mu::Tkn_Equal)) {
+                                    def = parse_spec(false);
+                                    pos.extend(def->pos());
+                                }
+
+                                return ast::make_decl<ast::TraitElementType>(token.ident, def, pos);
+                            }
+                            else {
+                                return parse_procedure(token.ident, ast::AttributeList({}), ast::Public);
+                            }
                         }
                     }
                 },
@@ -559,7 +590,7 @@ ast::DeclPtr mu::Parser::parse_trait(ast::Ident *name) {
         );
     }
     expect(mu::Tkn_CloseBracket);
-    return ast::make_decl<ast::TypeClass>(name, members, generics, pos);
+    return ast::make_decl<ast::TypeClass>(name, members, generics, vis, pos);
 }
 
 ast::AttributeList mu::Parser::parse_attributes() {
@@ -645,7 +676,7 @@ std::shared_ptr<ast::ProcedureSigniture> mu::Parser::parse_procedure_signiture()
     }
 }
 
-ast::DeclPtr mu::Parser::parse_procedure(ast::Ident *name, const ast::AttributeList &attributes) {
+ast::DeclPtr mu::Parser::parse_procedure(ast::Ident *name, const ast::AttributeList &attributes, ast::Visibility vis) {
     std::vector<ast::Modifier> modifiers;
     auto pos = name->pos;
     bool pub_added = false;
@@ -657,19 +688,13 @@ ast::DeclPtr mu::Parser::parse_procedure(ast::Ident *name, const ast::AttributeL
                 pos.extend(current().pos());
                 advance();
                 break;
-            case mu::Tkn_Pub:
-                modifiers.push_back(ast::Mod_Public);
-                pub_added = true;
-                pos.extend(current().pos());
-                advance();
-                break;
             default:
                 stop = true;
         }
     }
 
-    if(!pub_added)
-        modifiers.push_back(ast::Mod_Private);
+//    if(!pub_added)
+//        modifiers.push_back(ast::Mod_Private);
 
     auto sig = parse_procedure_signiture();
 
@@ -682,15 +707,15 @@ ast::DeclPtr mu::Parser::parse_procedure(ast::Ident *name, const ast::AttributeL
     if(allow(mu::Tkn_Equal) || check(mu::Tkn_OpenBracket)) {
         auto body = parse_expr();
         pos.extend(body->pos());
-        return ast::make_decl<ast::Procedure>(name, sig, body, attributes, modifiers, pos);
+        return ast::make_decl<ast::Procedure>(name, sig, body, attributes, modifiers, vis, pos);
     }
     else {
         ast::ExprPtr body;
-        return ast::make_decl<ast::Procedure>(name, sig, body, attributes, modifiers, pos);
+        return ast::make_decl<ast::Procedure>(name, sig, body, attributes, modifiers, vis, pos);
     }
 }
 
-ast::DeclPtr mu::Parser::parse_struct(ast::Ident *name) {
+ast::DeclPtr mu::Parser::parse_struct(ast::Ident *name, ast::Visibility vis) {
     passert(current().kind() == mu::Tkn_Struct);
     advance();
 
@@ -748,7 +773,7 @@ ast::DeclPtr mu::Parser::parse_struct(ast::Ident *name) {
 
     expect(mu::Tkn_CloseBracket);
 
-    return ast::make_decl<ast::Structure>(name, bounds, members, generics, pos);
+    return ast::make_decl<ast::Structure>(name, bounds, members, generics, vis, pos);
 }
 
 void mu::Parser::remove_newlines() {
@@ -756,7 +781,7 @@ void mu::Parser::remove_newlines() {
         advance(true);
 }
 
-ast::DeclPtr mu::Parser::parse_type(ast::Ident *name) {
+ast::DeclPtr mu::Parser::parse_type(ast::Ident *name, ast::Visibility vis) {
 //    auto generics = parse_generic_group();
     passert(current().kind() == mu::Tkn_Type);
     advance();
@@ -816,7 +841,7 @@ ast::DeclPtr mu::Parser::parse_type(ast::Ident *name) {
 
     expect(mu::Tkn_CloseBracket);
 
-    return ast::make_decl<ast::Type>(name, bounds, members, generics, pos);
+    return ast::make_decl<ast::Type>(name, bounds, members, generics, vis, pos);
 }
 
 ast::DeclPtr mu::Parser::parse_member_variable() {
@@ -1093,7 +1118,6 @@ ast::PatternPtr mu::Parser::parse_pattern(bool bind_pattern) {
         auto pos = pattern->pos();
         pos.span += 1;
         pos.extend(end->pos());
-
         return ast::make_pattern<ast::RangePattern>(pattern, end, pos);
     }
     else
@@ -1102,8 +1126,15 @@ ast::PatternPtr mu::Parser::parse_pattern(bool bind_pattern) {
 
 ast::SpecPtr mu::Parser::parse_spec(bool allow_infer) {
     auto token = current();
-
     switch(token.kind()) {
+        case mu::Tkn_TypeLit: {
+            advance();
+            return ast::make_spec<ast::TypeLitSpec>(token.pos());
+        }
+        case mu::Tkn_UnitName: {
+            advance();
+            return ast::make_spec<ast::UnitSpec>(token.pos());
+        }
         case mu::Tkn_Identifier: {
             auto expr = parse_expr_spec(true);
             return ast::make_spec<ast::ExprSpec>(expr, expr->pos());
@@ -1190,7 +1221,7 @@ ast::SpecPtr mu::Parser::parse_spec(bool allow_infer) {
     }
 }
 
-ast::DeclPtr mu::Parser::parse_impl(ast::Ident *name) {
+ast::DeclPtr mu::Parser::parse_impl(ast::Ident *name, ast::Visibility vis) {
     auto pos = name->pos;
     pos.extend(current().pos());
     advance();
@@ -1214,11 +1245,11 @@ ast::DeclPtr mu::Parser::parse_impl(ast::Ident *name) {
                     expect(mu::Tkn_NewLine);
                 }
                 //
-
+                auto vis = parse_visability();
                 auto [token, valid] = expect(mu::Tkn_Identifier);
                 expect(mu::Tkn_Colon);
                 if(valid) {
-                    return parse_procedure(token.ident, attributes);
+                    return parse_procedure(token.ident, attributes, vis);
                 }
                 else {
                     ast::DeclPtr ret;
@@ -1265,6 +1296,13 @@ ast::DeclPtr mu::Parser::parse_type_member() {
     return ast::DeclPtr();
 }
 
+ast::Visibility mu::Parser::parse_visability() {
+    if(allow(mu::Tkn_Pub))
+        return ast::Public;
+    else
+        return ast::Private;
+}
+
 bool mu::Parser::sync_after_error() {
     while(!check(mu::Tkn_NewLine)) {
         switch(current().kind()) {
@@ -1277,4 +1315,97 @@ bool mu::Parser::sync_after_error() {
         }
     }
     return true;
+}
+
+ast::DeclPtr mu::Parser::parse_usepath() {
+    auto parse_path = [this]() {
+        ast::SPath path;
+        bool expect_follow = false;
+        do {
+            auto token = current();
+            if(allow(mu::Tkn_Identifier)) {
+                path.push_back(token.ident);
+            } else if(check(mu::Tkn_OpenBracket)) {
+                expect_follow = true;
+                break;
+            }
+            else if(check(mu::Tkn_Astrick)) {
+                expect_follow = true;
+                break;
+            }
+            else {
+                report(token.pos(), "unexpected '%s' in path", token.get_string().c_str());
+                return std::make_pair(ast::SPath(), expect_follow);
+            }
+        } while(allow(mu::Tkn_Period));
+        return std::make_pair(path, expect_follow);
+    };
+
+    auto [path, expect_follow] = parse_path();
+    if(path.empty())
+        return ast::DeclPtr();
+
+    auto pos = path.front()->pos;
+    pos.span = 0;
+
+    for(auto& p : path)
+        pos.extend(p->pos);
+
+    // this handles the span of the periods.
+    pos.span += (path.size() - 1);
+
+    if(expect_follow) {
+        auto token = current();
+        advance();
+        switch (token.kind()) {
+            case mu::Tkn_OpenBracket: {
+                pos.span += 1;
+                auto elements = many<ast::DeclPtr>(
+                        [this]() {
+                            return parse_usepath();
+                        },
+                        [this, &pos]() {
+                            remove_newlines();
+                            bool val = allow(mu::Tkn_Comma);
+                            remove_newlines();
+                            if(val)
+                                pos.span += 1;
+                            return val and !check(mu::Tkn_CloseBracket);
+                        },
+                        Parser::append<ast::DeclPtr>
+                );
+                expect(mu::Tkn_CloseBracket);
+
+                for(auto& e : elements)
+                    pos.extend(e->pos());
+                pos.span += 1;
+
+                return ast::make_decl<ast::UsePathList>(path, elements, pos);
+            }
+            case mu::Tkn_Astrick: {
+                pos.span += 1;
+                return ast::make_decl<ast::UsePath>(path, true, pos);
+            }
+            case mu::Tkn_Colon: {
+                auto [name, valid] = expect(mu::Tkn_Identifier);
+
+                if(valid) {
+                    pos.extend(name.pos());
+                    pos.span += 1;
+                    return ast::make_decl<ast::UsePathAlias>(path, name.ident, pos);
+                }
+            }
+        }
+    }
+    else {
+        return ast::make_decl<ast::UsePath>(path, false, pos);
+    }
+}
+
+ast::DeclPtr mu::Parser::parse_use(ast::Visibility vis) {
+    expect(mu::Tkn_Use);
+
+    auto path = parse_usepath();
+
+    return ast::make_decl<ast::Use>(path, vis, path->pos());
 }

@@ -22,6 +22,8 @@ ast::ExprPtr parse::LiteralParser::lud(mu::Parser &parser, mu::Token token) {
         case mu::Tkn_True:
         case mu::Tkn_False:
             return ast::make_expr<ast::Bool>(token.kind() == mu::Tkn_True, token.pos());
+        case mu::Tkn_Unit:
+            return ast::make_expr<ast::Unit>(token.pos());
         default:
             return nullptr;
     }

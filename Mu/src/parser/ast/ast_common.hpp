@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "common.hpp"
+struct Atom;
 
 namespace mu {
     struct Pos {
@@ -38,16 +39,17 @@ namespace mu {
 
 namespace ast {
     struct Ident {
-        std::string value;
+        Atom* val;
         mu::Pos pos;
 
-        inline Ident(const std::string& value, const mu::Pos& pos) : value(value), pos(pos) {
+        inline Ident(Atom* val, const mu::Pos& pos) : val(val), pos(pos) {
         }
 
-        friend inline std::ostream& operator<< (std::ostream& out, const Ident& id) {
-            out << id.value;
-            return out;
-        }
+        inline const std::string& value() { return val->value; }
+
+//        friend inline std::ostream& operator<< (std::ostream& out, const Ident& id) {
+//            return out;
+//        }
    };
 
 
@@ -78,6 +80,7 @@ namespace ast {
         ast_method,     // executing an operation of an object, x.y()
         ast_call,       // executing a procedure, x()
         ast_self_expr,  // self
+        ast_cast_expr,  // type casting of an expression x as f32
 
         // control flow
         ast_if_expr, //
@@ -95,6 +98,9 @@ namespace ast {
 
         ast_expr_binding,
         ast_range,
+
+        ast_unit_expr,
+        ast_assign,
 
         // Stmt
         ast_expr,
@@ -120,9 +126,15 @@ namespace ast {
         ast_procedure_parameter,
         ast_self_parameter,
 
+        ast_trait_element_type,
+
         ast_impl,
 
         ast_type_member,
+
+        ast_use_path,
+        ast_use_path_list,
+        ast_use_path_alias,
 
         // patterns
         ast_ident,
@@ -153,8 +165,13 @@ namespace ast {
         ast_mut,
         ast_self_type,
         ast_procedure_spec,
+        ast_type_lit,
 
         ast_infer_type,     // this is more for type infrencing
+        ast_unit_type,
+
+        ast_module_file,
+        ast_module_dir,
     };
 
     extern std::vector<std::string> node_names;
@@ -167,11 +184,23 @@ namespace ast {
 
        inline const mu::Pos& pos() { return position; }
 
-       virtual std::ostream& operator<< (std::ostream& out) {
-           out << node_names[kind] << "|";
-           out << position;
-           return out;
-       }
+       template <typename T>
+       const T* as() const {
+           return CAST_PTR(const T, this);
+        }
+
+        template <typename T>
+        T* as() {
+            return (T*) const_cast<const AstNode&>(*this).as<T>();
+        }
+
+
+
+//       virtual std::ostream& operator<< (std::ostream& out) {
+//           out << node_names[kind] << "|";
+//           out << position;
+//           return out;
+//       }
     };
 
     struct Decl : public AstNode {
@@ -183,10 +212,10 @@ namespace ast {
 
         virtual ~Expr() = default;
 
-        virtual std::ostream& operator<< (std::ostream& out) override {
-            AstNode::operator<<(out);
-            return out;
-        }
+//        virtual std::ostream& operator<< (std::ostream& out) override {
+//            AstNode::operator<<(out);
+//            return out;
+//        }
     };
 
     // these are declared here instead of their files because there were some
@@ -194,7 +223,7 @@ namespace ast {
     struct Stmt : public AstNode {
         Stmt(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
 
-        virtual std::ostream& operator<< (std::ostream& out) = 0;
+//        virtual std::ostream& operator<< (std::ostream& out) = 0;
     };
 
     struct Spec : public AstNode {
@@ -241,7 +270,7 @@ namespace ast {
         return PatternPtr(new Type(args...));
     }
 
-
+    typedef std::vector<Ident*> SPath;
 }
 
 #endif
