@@ -97,8 +97,7 @@ ast::ModuleFile *mu::Parser::process(io::File *file) {
     if(!scanner.init(file))
         return nullptr;
     advance();
-//    return parse_module();
-    return nullptr;
+    return parse_module();
 }
 
 void mu::Parser::passert(bool term) {
@@ -441,6 +440,9 @@ ast::DeclPtr mu::Parser::parse_decl(mu::Token token, bool toplevel) {
                 }
                 decl = parse_variable(token.kind());
             }
+        default:
+            report(token.pos(), "invalid declaration, expecting '@', 'let', 'mut', 'use', or identifier. Found '%s'",
+                    token.get_string().c_str());
     }
     // if we are at the end of the file do not expect a new line
     // however, consume them if some are there.

@@ -2,7 +2,9 @@
 #include "interpreter.hpp"
 #include "parser/scanner/scanner.hpp"
 #include "parser/scanner/token.hpp"
+#include "utils/directory.hpp"
 #include "utils/file.hpp"
+
 
 int main(i32 argc, const char** argv) {
     std::vector<std::string> args;

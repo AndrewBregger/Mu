@@ -8,6 +8,8 @@
 
 using namespace mu::types;
 
+const u32 LINE_RANGE = 2; // +/-2 from the line in question
+
 Type* type_u8;
 Type* type_u16;
 Type* type_u32;
@@ -27,6 +29,8 @@ Type* type_string{nullptr};
 Interpreter* Interpreter::instance = nullptr;
 
 Interpreter::Context::Context(const std::vector<std::string> &args) : args(args) {
+    // get the current working directory(maybe this could be passed in through the args.
+    dir = new io::Directory(io::Path("."), true);
 }
 
 Interpreter::Interpreter(const std::vector<std::string> &args) : context(args) {
@@ -39,6 +43,14 @@ Interpreter::Interpreter(const std::vector<std::string> &args) : context(args) {
     }
 
     setup();
+}
+
+io::File *Interpreter::find_file_by_id(u64 id) {
+    auto [file, valid] = context.dir->find(id);
+    if(valid and file->is_file())
+        return CAST_PTR(io::File, file);
+    else
+        return nullptr;
 }
 
 void Interpreter::setup() {
@@ -100,6 +112,8 @@ void Interpreter::setup() {
     prelude->insert(type_char_entity->get_name(), type_char_entity);
     prelude->insert(type_bool_entity->get_name(), type_bool_entity);
     prelude->insert(type_unit_entity->get_name(), type_unit_entity);
+
+    std::cout << type_u8_entity->path().str() << std::endl;
 }
 
 InterpResult Interpreter::process(io::File *file) {
@@ -115,6 +129,20 @@ InterpResult Interpreter::process(io::File *file) {
     else {
         auto modulefile = typer.resolve_main_module(module);
     }
+}
+
+void Interpreter::print_file_pos(const mu::Pos &pos) {
+    auto file = find_file_by_id(pos.fid);
+    out_stream() << file->absolute_path() << pos;
+}
+
+void Interpreter::print_file_section(const mu::Pos &pos) {
+    auto file = find_file_by_id(pos.fid);
+
+    auto line = pos.line;
+
+    out_stream() << "\t" << file->get_line(line) << std::endl;
+    out_stream() << "\t" << std::string(pos.column - 1, ' ') << '^' << std::endl;
 }
 
 void Interpreter::fatal(const std::string &msg) {

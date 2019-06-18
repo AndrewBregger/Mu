@@ -7,6 +7,13 @@
 #include "common.hpp"
 
 namespace io {
+
+#if defined(MU_APPLE) || defined(MU_LINUX)
+    const char DIR_SEP = '/';
+#else
+    const char DIR_SEP = '\\';
+#endif
+
     enum FileKind {
         IOFile,
         IODirectory
@@ -23,8 +30,11 @@ namespace io {
         Path get_relative(const Path& to) const;
         Path get_relative(const Path& to);
 
-        Path filename() const;
-        Path filename();
+        Path filename(bool with_extension = true) const;
+        Path filename(bool with_extension = true);
+
+        Path extension() const;
+        Path extension();
 
         bool is_directory() const;
         bool is_directory();
@@ -39,9 +49,13 @@ namespace io {
 
         const std::string& string() const;
         const std::string& string();
+
+        friend std::ostream& operator<< (std::ostream& out, const Path& path);
     private:
         std::string path;
     };
+
+    const Path EXTENSION_NAME = Path("mu");
 
 
     class IO {
@@ -60,6 +74,8 @@ namespace io {
 
         bool is_file();
 
+        bool is_directory();
+
         bool is_load();
 
         virtual bool load() = 0;
@@ -74,6 +90,7 @@ namespace io {
         Path n;         /// the name of the entity
         Path p;         /// the path of the entity
         u64 uid{0};         /// unique id of the entity
+    protected:
         bool loaded{false}; /// whether it is loaded
     };
 }

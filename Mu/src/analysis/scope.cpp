@@ -8,7 +8,7 @@ mu::Scope::Scope(ast::AstNode *r, mu::ScopeKind k, mu::Scope *parent) : r(r), k(
 }
 
 std::pair<mu::Entity*, bool> mu::Scope::find(ast::Ident *name) {
-    auto iter = elements.find(name);
+    auto iter = elements.find(name->val);
     if(iter == elements.end())
         return std::make_pair(nullptr, false);
     else
@@ -16,7 +16,7 @@ std::pair<mu::Entity*, bool> mu::Scope::find(ast::Ident *name) {
 }
 
 bool mu::Scope::insert(ast::Ident *name, mu::Entity *entity) {
-    auto iter = elements.emplace(name, entity);
+    auto iter = elements.emplace(name->val, entity);
     return iter.second;
 }
 

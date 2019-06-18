@@ -81,7 +81,8 @@ namespace mu {
 
             Entity* resolve_entity(Entity* entity);
 
-            bool is_redeclaration(ast::Ident* name);
+            // checks for a ren
+            bool is_redeclaration(Atom* name);
 
             Entity* resolve(Global* global);
             Entity* resolve(Local* local);
@@ -133,15 +134,29 @@ namespace mu {
 
             Operand resolve_literals(ast::Expr* expr);
 
+            // resolve a type spec to the type it specifies.
+            types::Type* resolve_spec(ast::Spec* spec);
+
+            // resolves the expression as an a type.
+            // this will be expanded to allow arbitrary expressions
+            // as types.
+            Entity* resolve_expr_spec(ast::Expr* expr);
+
+            types::Type* resolve_function_spec(ast::ProcedureSpec* proc_spec);
+
 //            template <typename... Args>
 //            void report(const mu::Pos& pos, const std::string& msg, Args... args) {
 //                interp->report_error(pos, msg, args...);
 //            }
 
         private:
-            Interpreter* interp{nullptr};
 
+            void increment_error();
+
+            Interpreter* interp{nullptr};
             Scope* current_scope{nullptr};
+
+            u32 errors_num{0};
     };
 }
 

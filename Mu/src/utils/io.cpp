@@ -69,31 +69,40 @@ io::Path io::Path::get_relative(const io::Path &to) {
     return const_cast<const Path&>(*this).get_relative(to);
 }
 
-io::Path io::Path::filename() const {
-    #if defined(MU_APPLE)
-        u64 index = path.find_last_of('/') + 1;
-        u64 ext = path.find_last_of('.');
+io::Path io::Path::filename(bool with_extension) const {
+    u64 index = path.find_last_of(DIR_SEP) + 1;
+    u64 ext = path.find_last_of('.');
 
-        if(index == std::string::npos)
-            return *this;
-        else
-           return Path(path.substr(index, ext - index));
-    #else
-//     #error __FUNCTION__ is not implemented for this platform
-        u64 index = path.find_last_of('\\') + 1;
-        u64 ext = path.find_last_of('.');
-
-        if(index == std::string::npos)
-            return *this;
-        else
-           return Path(path.substr(index, ext - index));
-    #endif
-    // auto filename = 
-    return io::Path("");
+    if(index == std::string::npos)
+        return *this;
+    else
+    if(with_extension)
+        return Path(path.substr(index));
+    else
+        return Path(path.substr(index, ext - index));
 }
 
-io::Path io::Path::filename() {
-    return const_cast<const Path&>(*this).filename();
+io::Path io::Path::filename(bool with_extension) {
+    return const_cast<const Path&>(*this).filename(with_extension);
+}
+
+io::Path io::Path::extension() const {
+    if(is_file()) {
+        u64 ext = path.find_last_of('.');
+
+        // this file doenst have an extension
+        if(ext == std::string::npos)
+            return Path("");
+        else
+            return Path(path.substr(ext + 1));
+    }
+    else
+        return Path("");
+
+}
+
+io::Path io::Path::extension() {
+    return const_cast<const Path&>(*this).extension();
 }
 
 bool io::Path::is_directory() const {
@@ -147,11 +156,14 @@ void io::Path::remove_filename() {
 }
 
 io::Path io::Path::parent_path() const {
-    #if defined(MU_APPLE)
-    #else
-    //#error __FUNCTION__ is not implemented for this platform
-    #endif
-    return io::Path("");
+    auto index = path.find_last_of(DIR_SEP);
+    if(index == std::string::npos) {
+        // maybe this is a bad idea.
+        auto abs = get_absolute();
+        return abs.parent_path();
+    }
+    else
+        return Path(path.substr(0, index));
 }
 
 io::Path io::Path::parent_path() {
@@ -166,6 +178,9 @@ const std::string &io::Path::string() {
     return const_cast<const Path&>(*this).string();
 }
 
+std::ostream &io::operator<<(std::ostream &out, const io::Path &path) {
+    return out << path.path;
+}
 
 io::IO::IO(FileKind k, const Path &p) : k(k),
 n(p.filename()), p(p), uid(IO::hash_name(p.string())) {
@@ -227,13 +242,17 @@ bool io::IO::is_file() {
     return k == IOFile;
 }
 
+bool io::IO::is_directory() {
+    return k == IODirectory;
+}
+
 bool io::IO::is_load() {
     return this->loaded;
 }
 
 
 u64 io::IO::hash_name(const Path &path) {
-    return hash_name(path.string());
+    return hash_name(path.get_absolute().string());
 }
 
 

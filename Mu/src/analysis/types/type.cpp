@@ -71,7 +71,8 @@ mu::types::Type *mu::types::PrimitiveInt::base_type() {
     return this;
 }
 
-mu::types::PrimitiveString::PrimitiveString(u64 sz) : Type(Primitive_String, sz) {
+mu::types::PrimitiveString::PrimitiveString(Entity* declaration, u64 sz) : Type(Primitive_String, sz),
+    declaration(declaration)  {
 }
 
 mu::types::PrimitiveString::~PrimitiveString() = default;
@@ -210,8 +211,9 @@ mu::types::Type *mu::types::DynArray::base_type() {
 }
 
 mu::types::StructType::StructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Entity *> &members,
-                                  mu::ScopePtr member_scope_ptr, u64 sz) :
-                                  Type(StructureType, sz), name(name), members(members), member_scope_ptr(member_scope_ptr) {
+                                  mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration) :
+                                  Type(StructureType, sz), name(name), members(members), member_scope_ptr(member_scope_ptr),
+                                  declaration(declaration) {
 
    member_scope = member_scope_ptr.as<MemberScope>();
    if(!member_scope) {
@@ -275,8 +277,9 @@ u64 mu::types::TypeFieldHasher::operator()(const mu::types::TypeField &field) co
 }
 
 mu::types::SumType::SumType(ast::Ident *name, const std::unordered_map<ast::Ident *, mu::TypeMember *> &members,
-                        mu::ScopePtr member_scope_ptr, u64 sz) : Type(SType, sz),
-                        name(name), members(members), member_scope_ptr(member_scope_ptr) {
+                            mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration) : Type(SType, sz),
+                        name(name), members(members), member_scope_ptr(member_scope_ptr),
+                        declaration(declaration) {
     member_scope = member_scope_ptr.as<MemberScope>();
     if(!member_scope) {
         auto interp = Interpreter::get();
@@ -294,11 +297,11 @@ std::string mu::types::SumType::str() {
     return name->value();
 }
 
-mu::types::TraitType::TraitType(ast::Ident *name,
-                                const std::unordered_set<mu::types::TypeField, mu::types::TypeFieldHasher> &type_fields,
-                                const std::unordered_map<ast::Ident *, mu::Function *> &members,
-                                mu::ScopePtr member_scope_ptr) : Type(TraitAttributeType, 0), name(name),
-                                type_fields(type_fields), members(members), member_scope_ptr(member_scope_ptr) {
+mu::types::TraitType::TraitType(ast::Ident *name, const std::unordered_set<TypeField, TypeFieldHasher> &type_field,
+                                const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr,
+                                Entity *declaration) : Type(TraitAttributeType, 0), name(name),
+                                type_fields(type_field), members(members), member_scope_ptr(member_scope_ptr),
+                                declaration(declaration) {
     member_scope = member_scope_ptr.as<MemberScope>();
     if(!member_scope) {
         auto interp = Interpreter::get();
@@ -316,11 +319,10 @@ std::string mu::types::TraitType::str() {
     return name->value();
 }
 
-mu::types::PolyStructType::PolyStructType(ast::Ident *name,
-                                          const std::unordered_map<ast::Ident *, mu::Local *> &members,
-                                          mu::ScopePtr member_scope_ptr, mu::ScopePtr const_block_ptr) : Type(PolyStructureType, 0),
+mu::types::PolyStructType::PolyStructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Local *> &members,
+                                          ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration) : Type(PolyStructureType, 0),
                                           name(name), members(members), member_scope_ptr(member_scope_ptr),
-                                          const_block_ptr(const_block_ptr) {
+                                          const_block_ptr(const_block_ptr), declaration(declaration) {
     member_scope = member_scope_ptr.as<MemberScope>();
     const_block = const_block_ptr.as<ConstBlockScope>();
 
@@ -349,17 +351,17 @@ std::string mu::types::PolyStructType::str() {
     std::string s = name->value();
     s += "[";
     for(auto m : *const_block)  {
-        s += m.first->value();
+        s += m.first->value;
         s += ", ";
     }
     s = s.substr(0, s.size() - 2) + "]";
     return s;
 }
 
-mu::types::PolySumType::PolySumType(ast::Ident *name, const std::unordered_map<ast::Ident *, mu::TypeMember *> &members,
-                                mu::ScopePtr member_scope_ptr, mu::ScopePtr const_block_potr) :
+mu::types::PolySumType::PolySumType(ast::Ident *name, const std::unordered_map<ast::Ident *, TypeMember *> &members,
+                                    ScopePtr member_scope_ptr, ScopePtr const_block_potr, Entity *declaration) :
                                 Type(PolySType, 0), name(name), members(members), member_scope_ptr(member_scope_ptr),
-                                const_block_ptr(const_block_ptr) {
+                                const_block_ptr(const_block_ptr), declaration(declaration) {
 
     member_scope = member_scope_ptr.as<MemberScope>();
     const_block = const_block_ptr.as<ConstBlockScope>();
@@ -389,16 +391,17 @@ std::string mu::types::PolySumType::str() {
     std::string s = name->value();
     s += "[";
     for(auto m : *const_block)  {
-        s += m.first->value();
+        s += m.first->value;
         s += ", ";
     }
     s = s.substr(0, s.size() - 2) + "]";
     return s;
 }
 
-mu::types::PolyFunction::PolyFunction(const std::vector<Type*>& params,
-                                      mu::types::Type *ret, mu::ScopePtr const_block_ptr) : Type(PolyFunctionType, 0),
-                                      params(params), ret(ret), const_block_ptr(const_block_ptr) {
+mu::types::PolyFunction::PolyFunction(const std::vector<Type *> &params, Type *ret, ScopePtr const_block_ptr,
+                                      Entity *declaration) : Type(PolyFunctionType, 0),
+                                                             params(params), ret(ret), const_block_ptr(const_block_ptr),
+                                                             declaration(declaration) {
     const_block = const_block_ptr.as<ConstBlockScope>();
     if(!const_block) {
         auto interp = Interpreter::get();
@@ -420,7 +423,7 @@ std::string mu::types::PolyFunction::str() {
     std::string s;
     s += "[";
     for(auto m : *const_block)  {
-        s += m.first->value();
+        s += m.first->value;
         s += ", ";
     }
     s = s.substr(0, s.size() - 2) + "]";
@@ -435,12 +438,13 @@ std::string mu::types::PolyFunction::str() {
 }
 
 mu::types::PolyTraitType::PolyTraitType(ast::Ident *name,
-                                        const std::unordered_set<mu::types::TypeField, mu::types::TypeFieldHasher> &type_fields,
-                                        const std::unordered_map<ast::Ident *, mu::Function *> &members,
-                                        mu::ScopePtr member_scope_ptr, mu::ScopePtr &const_block_ptr) :
+                                        const std::unordered_set<TypeField, TypeFieldHasher> &type_fields,
+                                        const std::unordered_map<ast::Ident *, Function *> &members,
+                                        ScopePtr member_scope_ptr,
+                                        ScopePtr &const_block_ptr, Entity *declaration) :
                                         Type(PolyTraitAttributeType, 0), name(name),
                                         type_fields(type_fields), members(members), member_scope_ptr(member_scope_ptr),
-                                        const_block_ptr(const_block_ptr) {
+                                        const_block_ptr(const_block_ptr), declaration(declaration) {
     member_scope = member_scope_ptr.as<MemberScope>();
     const_block = const_block_ptr.as<ConstBlockScope>();
 
@@ -468,7 +472,7 @@ bool mu::types::PolyTraitType::is_polymophic() {
 std::string mu::types::PolyTraitType::str() {
     std::string s = name->value() + "[";
     for(auto m : *const_block)  {
-        s += m.first->value();
+        s += m.first->value;
         s += ", ";
     }
     s = s.substr(0, s.size() - 2) + "]";
@@ -476,12 +480,13 @@ std::string mu::types::PolyTraitType::str() {
 }
 
 mu::types::TypeBounds::TypeBounds(mu::types::PolymorphicType *bounded,
-                                  const std::vector<mu::types::TraitType *> &bounds) {
-
+                                  const std::vector<mu::types::TraitType *> &bounds):
+                                  bounded(bounded), bounds(bounds){
 }
 
-mu::types::PolymorphicType::PolymorphicType(ast::Ident *name, std::vector<mu::types::TraitType *> &bounds) :
-    Type(PolyType, 0), name(name), bounds(this, bounds) {
+mu::types::PolymorphicType::PolymorphicType(ast::Ident *name, std::vector<mu::types::TraitType *> &bounds,
+                                            Entity* declaration) :
+    Type(PolyType, 0), name(name), bounds(this, bounds), declaration(declaration) {
 }
 
 mu::types::PolymorphicType::~PolymorphicType() = default;

@@ -17,9 +17,7 @@ namespace mu {
     class Entity;
 
     class Local;
-
     class Function;
-
     class TypeMember;
 
     namespace types {
@@ -222,7 +220,7 @@ namespace mu {
 
         class PrimitiveString : public Type {
         public:
-            PrimitiveString(u64 sz);
+            PrimitiveString(Entity* declaration, u64 sz);
 
             virtual ~PrimitiveString();
 
@@ -233,6 +231,10 @@ namespace mu {
             bool is_struct() override { return true; }
 
             Type *base_type() override;
+        private:
+            Entity* declaration; // where the type was defined.
+            // eventhough this is a primitive type, it is defined in the
+            // prelude so it will have an actual
         };
 
 //    class PrimitiveBool : public Type {
@@ -359,7 +361,7 @@ namespace mu {
         struct StructType : public Type {
         public:
             StructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Entity *> &members,
-                       mu::ScopePtr member_scope_ptr, u64 sz);
+                       mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration);
 
             virtual ~StructType();
 
@@ -375,13 +377,14 @@ namespace mu {
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};
             ScopePtr member_scope_ptr;
+            Entity* declaration; // where the type was defined.
         };
 
 
         struct SumType : public Type {
         public:
             SumType(ast::Ident *name, const std::unordered_map<ast::Ident *, mu::TypeMember *> &members,
-                    mu::ScopePtr member_scope_ptr, u64 sz);
+                    mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration);
 
             virtual ~SumType();
 
@@ -396,6 +399,7 @@ namespace mu {
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};
             ScopePtr member_scope_ptr;
+            Entity* declaration; // where the type was defined.
         };
 
         struct FunctionType : public Type {
@@ -431,7 +435,8 @@ namespace mu {
         class TraitType : public Type {
         public:
             TraitType(ast::Ident *name, const std::unordered_set<TypeField, TypeFieldHasher> &type_field,
-                      const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr);
+                      const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr,
+                      Entity *declaration);
 
             virtual ~TraitType();
 
@@ -446,12 +451,13 @@ namespace mu {
 
             MemberScope *member_scope{nullptr};
             ScopePtr member_scope_ptr;
+            Entity* declaration; // where the type was defined.
         };
 
         class PolyStructType : public Type {
         public:
             PolyStructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Local *> &members,
-                           ScopePtr member_scope_ptr, ScopePtr const_block_ptr);
+                           ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration);
 
             virtual ~PolyStructType();
 
@@ -471,13 +477,14 @@ namespace mu {
 
             ConstBlockScope *const_block{nullptr};
             ScopePtr const_block_ptr;
+            Entity* declaration; // where the type was defined.
         };
 
         class PolySumType : public Type {
         public:
 
             PolySumType(ast::Ident *name, const std::unordered_map<ast::Ident *, TypeMember *> &members,
-                        ScopePtr member_scope_ptr, ScopePtr const_block_potr);
+                        ScopePtr member_scope_ptr, ScopePtr const_block_potr, Entity *declaration);
 
             virtual ~PolySumType();
 
@@ -497,13 +504,14 @@ namespace mu {
 
             ConstBlockScope *const_block{nullptr};
             ScopePtr const_block_ptr;
+
+            Entity* declaration; // where the type was defined.
         };
 
         class PolyFunction : public Type {
         public:
 
-            PolyFunction(const std::vector<Type *> &params, Type *ret,
-                         ScopePtr const_block_ptr);
+            PolyFunction(const std::vector<Type *> &params, Type *ret, ScopePtr const_block_ptr, Entity *declaration);
 
             virtual ~PolyFunction();
 
@@ -519,6 +527,8 @@ namespace mu {
 
             ConstBlockScope *const_block{nullptr};
             ScopePtr const_block_ptr;
+
+            Entity* declaration; // where the type was defined.
         };
 
         class PolyTraitType : public Type {
@@ -526,7 +536,7 @@ namespace mu {
 
             PolyTraitType(ast::Ident *name, const std::unordered_set<TypeField, TypeFieldHasher> &type_fields,
                           const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr,
-                          ScopePtr &const_block_ptr);
+                          ScopePtr &const_block_ptr, Entity *declaration);
 
             virtual ~PolyTraitType();
 
@@ -546,12 +556,14 @@ namespace mu {
 
             ConstBlockScope *const_block{nullptr};
             ScopePtr const_block_ptr;
+
+            Entity* declaration; // where the type was defined.
         };
 
 
         class PolymorphicType : public Type {
         public:
-            PolymorphicType(ast::Ident *name, std::vector<TraitType *> &bounds);
+            PolymorphicType(ast::Ident *name, std::vector<TraitType *> &bounds, Entity* declaration);
 
             virtual ~PolymorphicType();
 
@@ -562,6 +574,7 @@ namespace mu {
         private:
             ast::Ident *name;
             TypeBounds bounds;
+            Entity* declaration;
         };
 
         class ModuleType : public Type {

@@ -5,10 +5,100 @@
 #include "entity.hpp"
 #include "interpreter.hpp"
 #include "typer.hpp"
+#include <stack>
 
 namespace mu {
+
+    TypePath::TypePath() {}
+
+    TypePath::TypePath(const std::vector<Scope *> &scopes) : scopes(scopes) {
+    }
+
+    void TypePath::push_scope(Scope *scope) {
+        if(scope->get_name() != nullptr)
+            scopes.push_back(scope);
+        else {
+            Interpreter::get()->fatal("Compiler Error: Adding a scope without a name to a type path");
+        }
+    }
+
+    // path to entity, doesnt include the entity itself.
+    // if method, returns the scope of the struct and parents.
+    // if method is in global scope of main? return emtpy Path?
+    TypePath::PathName TypePath::path() {
+        PathName p;
+
+        for(auto s : scopes)
+            p.push_back(s->get_name()->val);
+
+        return p;
+    }
+
+    Scope *TypePath::scope_by_name(Atom *name) {
+        auto iter = std::search_n(scopes.begin(), scopes.end(), scopes.size(), name,
+            [](Scope* s, Atom* n){
+                auto name = s->get_name();
+                // this shouldn't happen
+                if(name) {
+                    return name->val == n;
+                }
+                else return false;
+            }
+        );
+
+        if(iter == scopes.end())
+            return nullptr;
+        else
+            return *iter;
+    }
+
+    std::string TypePath::str() {
+        std::string s;
+
+        auto p = path();
+
+        for(auto iter = p.begin(); iter < p.end();) {
+            s += (*iter)->value;
+            // maybe add
+            if(++iter < p.end())
+                s += ".";
+        }
+
+        return s;
+    }
+
     Entity::Entity(ast::Ident *name, Scope* p, EntityKind k, ast::DeclPtr decl) :
         k(k), type(nullptr), parent(p), name(name), decl(decl) {
+    }
+
+//    int Entity::str() {
+//        return 0;
+//    }
+
+    Entity::~Entity() = default;
+
+    TypePath Entity::path() {
+        TypePath p;
+        std::stack<Scope*> scopes;
+        auto curr = parent;
+        // collect the scopes
+        while(curr) {
+            // if the entity was declared in a function, the
+            // we want to skip any block or defer scopes that are parent.
+            if(curr->get_name())
+                scopes.push(curr);
+
+            curr = curr->get_parent();
+        }
+
+        // since the stack above is going from the lower to higher scope
+        // when popped off the stack they will be in the correct order.
+        while(!scopes.empty()) {
+            p.push_scope(scopes.top());
+            scopes.pop();
+        }
+
+        return p;
     }
 
     Scope *Entity::scope() {
@@ -36,6 +126,8 @@ namespace mu {
     Global::Global(ast::Ident *name, Scope* p, ast::DeclPtr decl) : Global(name, nullptr, Unknown, p, decl) {
     }
 
+    Global::~Global() = default;
+
     std::string Global::str() {
         auto s = "global" + (mut ? std::string(" mut ") : std::string(" "));
         return s + name->value();
@@ -51,6 +143,8 @@ namespace mu {
 
     }
 
+    Local::~Local() = default;
+
     void Local::resolve(Typer *typer) {
         typer->resolve(this);
     }
@@ -64,6 +158,8 @@ namespace mu {
         val(val) {
     }
 
+    Constant::~Constant() = default;
+
     void Constant::resolve(Typer *typer) {
         typer->resolve(this);
     }
@@ -76,6 +172,8 @@ namespace mu {
     Alias::Alias(ast::Ident *name, types::Type *type, Scope* p, ast::DeclPtr decl) : Entity(name, p, AliasEntity, decl){
         this->type = type;
     }
+
+    Alias::~Alias() = default;
 
     void Alias::resolve(Typer *typer) {
         typer->resolve(this);
@@ -99,6 +197,8 @@ namespace mu {
         Function(name, {}, nullptr, nullptr, p, decl){
     }
 
+    Function::~Function() = default;
+
     void Function::resolve(Typer *typer) {
        typer->resolve(this);
     }
@@ -114,6 +214,8 @@ namespace mu {
 
     Type::Type(ast::Ident *name, Scope* p, ast::DeclPtr decl) : Type(name, nullptr, p, decl) {
     }
+
+    Type::~Type() = default;
 
     void Type::resolve(Typer *typer) {
         typer->resolve(this);
@@ -176,6 +278,8 @@ namespace mu {
     Module::Module(ast::Ident *name, Scope* p, ast::DeclPtr decl) :
         Entity(name, p, ModuleEntity, decl) {
     }
+
+    Module::~Module() = default;
 
     std::string Module::str() {
         return "mod " + name->value();

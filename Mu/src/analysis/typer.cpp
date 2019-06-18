@@ -11,30 +11,31 @@
 
 #define report(pos, msg, ...) { \
     interp->report_error(pos, msg, __VA_ARGS__); \
+    increment_error(); \
 }
 
 #define report_str(pos, msg) { \
     interp->report_error(pos, msg); \
+    increment_error(); \
 }
 
-using namespace mu::types;
 
-extern Type* type_u8;
-extern Type* type_u16;
-extern Type* type_u32;
-extern Type* type_u64;
-extern Type* type_i8;
-extern Type* type_i16;
-extern Type* type_i32;
-extern Type* type_i64;
-extern Type* type_f32;
-extern Type* type_f64;
-extern Type* type_char;
-extern Type* type_bool;
-extern Type* type_unit;
+extern mu::types::Type* type_u8;
+extern mu::types::Type* type_u16;
+extern mu::types::Type* type_u32;
+extern mu::types::Type* type_u64;
+extern mu::types::Type* type_i8;
+extern mu::types::Type* type_i16;
+extern mu::types::Type* type_i32;
+extern mu::types::Type* type_i64;
+extern mu::types::Type* type_f32;
+extern mu::types::Type* type_f64;
+extern mu::types::Type* type_char;
+extern mu::types::Type* type_bool;
+extern mu::types::Type* type_unit;
 
 // this is not implemented yet
-extern Type* type_string;
+extern mu::types::Type* type_string;
 
 namespace mu {
 
@@ -50,6 +51,10 @@ namespace mu {
 
     Typer::Typer(Interpreter *interp) : interp(interp), current_scope(interp->get_prelude()) {
 
+    }
+
+    void Typer::increment_error() {
+        errors_num++;
     }
 
     Module * Typer::resolve_main_module(ast::ModuleFile *main_module) {
@@ -147,11 +152,18 @@ namespace mu {
         if(entity->is_resolved())
             return entity;
 
+        // If an entity is resolved while it is
+        // actively being resolved.
         if(entity->status() == Resolving) {
             report(entity->node()->pos(), "'%s' has ciclic dependency", entity->str().c_str());
+
+            // return null if this happens.
+            return nullptr;
         }
 
         entity->resolve(this);
+
+        return entity;
     }
 
     Entity *Typer::resolve(Global *global) {
@@ -433,4 +445,52 @@ namespace mu {
     Operand Typer::resolve_name_generic_expr(ast::NameGeneric *expr) {
         return Operand(nullptr, nullptr, LValue);
     }
+
+    // how to make sure multiple of the same type are not created
+    types::Type *Typer::resolve_spec(ast::Spec *spec) {
+        switch(spec->kind) {
+            case ast::ast_expr_type:
+            case ast::ast_tuple:
+            case ast::ast_list_spec:
+            case ast::ast_list_spec_dyn:
+                break;
+            case ast::ast_ptr: {
+                auto s = spec->as<ast::PtrSpec>();
+                auto base_type = resolve_spec(s);
+                return interp->new_type<types::Pointer>(base_type);
+            }
+            case ast::ast_ref: {
+                auto s = spec->as<ast::RefSpec>();
+                auto base_type = resolve_spec(s);
+                return interp->new_type<types::Reference>(base_type);
+            }
+            case ast::ast_mut: {
+                auto s = spec->as<ast::MutSpec>();
+                auto base_type = resolve_spec(s);
+                return interp->new_type<types::Mutable>(base_type);
+            }
+            case ast::ast_self_type: {
+                // check if we are resolving an
+                // impl block. If we are, then return the type
+                // of the impl type being implemented.
+            }
+                //
+            case ast::ast_procedure_spec: {
+                auto p = spec->as<ast::ProcedureSpec>();
+            }
+
+            case ast::ast_type_lit:
+                return nullptr;
+            case ast::ast_infer_type:
+                return nullptr;
+            case ast::ast_unit_type:
+                return type_unit;
+        }
+    }
+
+    Entity *Typer::resolve_expr_spec(ast::Expr *expr) {
+        return nullptr;
+    }
+
+
 }

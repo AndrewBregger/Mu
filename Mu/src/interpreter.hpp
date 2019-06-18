@@ -54,11 +54,15 @@ public:
 
     inline io::File* current_file() { return context.current_file; }
 
+    io::File* find_file_by_id(u64 id);
+
     template<typename... Args>
     void report_error(const mu::Pos& pos, const std::string& fmt, Args... args) {
+        print_file_pos(pos);
         out_stream() << "Error: ";
         printf(fmt.c_str(), args...);
         out_stream() << std::endl;
+        print_file_section(pos);
     }
 
     template <typename... Args>
@@ -71,6 +75,10 @@ public:
     void fatal(const std::string& msg);
 
     void quit();
+
+    void print_file_pos(const mu::Pos& pos);
+
+    void print_file_section(const mu::Pos& pos);
 
     static Interpreter* get() { return instance; }
 

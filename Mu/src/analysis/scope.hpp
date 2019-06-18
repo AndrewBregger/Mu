@@ -37,8 +37,8 @@ namespace mu {
 
         inline ast::AstNode* node() { return r; }
 
-        inline std::unordered_map<ast::Ident*, Entity*>::iterator begin() { return elements.begin(); }
-        inline std::unordered_map<ast::Ident*, Entity*>::iterator end() { return elements.end(); }
+        inline std::unordered_map<Atom*, Entity*>::iterator begin() { return elements.begin(); }
+        inline std::unordered_map<Atom*, Entity*>::iterator end() { return elements.end(); }
 
         virtual ast::Ident* get_name() { return nullptr; }
 
@@ -48,7 +48,7 @@ namespace mu {
         Scope* parent;
         std::unordered_set<Scope*> children;
 
-        std::unordered_map<ast::Ident*, Entity*> elements;
+        std::unordered_map<Atom*, Entity*> elements;
         ast::AstNode* r;
         ScopeKind k;
     };
@@ -61,7 +61,7 @@ namespace mu {
     class ConstBlockScope : public Scope {
     public:
         ConstBlockScope(ast::Ident* name, ast::AstNode* r,  Scope* parent);
-        virtual ast::Ident* get_name() override { return name; }
+         ast::Ident* get_name() override { return name; }
     private:
         ast::Ident* name{nullptr};
     };
@@ -74,7 +74,7 @@ namespace mu {
     class MemberScope : public Scope {
     public:
         MemberScope(ast::Ident* name, ast::AstNode* r, Scope* parent);
-        virtual ast::Ident* get_name() override { return name; }
+         ast::Ident* get_name() override { return name; }
     private:
         ast::Ident* name{nullptr};
     };
@@ -82,7 +82,8 @@ namespace mu {
     class ModuleScope : public Scope {
     public:
         ModuleScope(ast::Ident* name, ast::AstNode* r, Scope* parent);
-        virtual ast::Ident* get_name() override { return name; }
+        ast::Ident* get_name() override { return name; }
+
     private:
         ast::Ident* name{nullptr};
     };

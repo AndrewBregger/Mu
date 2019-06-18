@@ -14,6 +14,53 @@
 namespace mu {
     class Typer;
 
+    class Entity;
+
+    // This is how I am going to specify a specific type when compairing
+    // named types (structure, functions, typeclasses, sumtypes). Because
+    // the above types are compared by name, we need to know the entire name
+    // inorder to compare accuratly. struct x.y is not the same a struct w.y.
+    //
+    // this is the entity path inorder to reach a specified entity.
+    // For example, there is a structure name 'X' in file module 'Y'
+    // the path would be Y.X.
+
+    // lets say module 'Y' is more complex. Now, 'X' is exported from a submodule
+    // of 'Y' call 'W' resulting in a path Y.W.X
+    //
+    // Now more complex, let say we have a generic static method, 'foo[]' of generic
+    // struct 'X[]' contained in sub module 'W' from the previous example.
+    // the path would be Y.W.X[...].foo[...] .... I guess if foo is static on X then the
+    // type parameters are not necessary to know what to call...right?
+    // the spuare brackets are needed because because each instance of a generic
+    // entity must be specified to know which on is being used.
+
+    class TypePath {
+    public:
+        typedef std::vector<Atom*> PathName;
+
+        // to iteratively build the TypePath
+        TypePath();
+
+        // builds the entire list all at once.
+        TypePath(const std::vector<Scope*>& scopes);
+
+        // pushes a new scope onto the path
+        void push_scope(Scope* scope);
+
+        // returns it a list of names (Atoms).
+        PathName path();
+
+        // returns the scope accociated to name
+        Scope* scope_by_name(Atom* name);
+
+        // builds a string of debugging and maybe error messges.
+        std::string str();
+
+    private:
+        std::vector<Scope*> scopes;
+    };
+
     enum EntityKind {
         LocalEntity,
         GlobalEntity,
@@ -45,6 +92,7 @@ namespace mu {
     class Entity {
     public:
         explicit Entity(ast::Ident* name, Scope* p, EntityKind k, ast::DeclPtr decl);
+        virtual ~Entity();
 
         inline EntityKind kind() { return k; }
         Scope* scope();
@@ -65,6 +113,8 @@ namespace mu {
         inline void update_status(EntityStatus st) { resolved = st; }
 
         virtual bool validate() { return true; }
+
+        TypePath path();
 
         virtual std::string str() = 0;
 
@@ -87,6 +137,8 @@ namespace mu {
     class Local : public Entity {
     public:
         Local(ast::Ident* name, types::Type* type, AddressType addr_type, Scope* p, ast::DeclPtr decl);
+        virtual ~Local();
+
         inline AddressType address() { return addr_type; }
 
         void resolve(Typer* typer) override;
@@ -107,6 +159,8 @@ namespace mu {
         // event though it is not declared. This is only on entities that can be declared in global scope.
         Global(ast::Ident* name, Scope* p, ast::DeclPtr decl);
 
+        virtual ~Global();
+
         inline AddressType address() { return addr_type; }
         std::string str() override;
         void resolve(Typer* typer) override;
@@ -122,6 +176,8 @@ namespace mu {
     class Constant : public Entity {
     public:
         Constant(ast::Ident* name, types::Type* type, mu::Val val, Scope* p, ast::DeclPtr decl);
+        virtual ~Constant();
+
         std::string str() override;
         void resolve(Typer* typer) override;
 
@@ -134,6 +190,8 @@ namespace mu {
        Type(ast::Ident* name, types::Type* type, Scope* p, ast::DeclPtr decl);
 
        Type(ast::Ident* name, Scope* p, ast::DeclPtr decl);
+
+       virtual ~Type();
 
         std::string str() override;
 
@@ -156,6 +214,8 @@ namespace mu {
 
         Function(ast::Ident *name, Scope* p, ast::DeclPtr decl);
 
+        virtual ~Function();
+
         std::string str() override;
 
         void resolve(Typer* typer) override;
@@ -169,6 +229,9 @@ namespace mu {
     class Alias : public Entity {
     public:
         Alias(ast::Ident* name, types::Type* type, Scope* p, ast::DeclPtr decl);
+
+        virtual ~Alias();
+
         std::string str() override;
         void resolve(Typer* typer) override;
 
@@ -180,6 +243,8 @@ namespace mu {
     public:
         Module(ast::Ident* name, types::Type* type, ScopePtr exproted_scope_ptr, Scope* p, ast::DeclPtr decl);
         Module(ast::Ident* name, Scope* p, ast::DeclPtr decl);
+
+        virtual ~Module();
 
         std::string str() override;
 
