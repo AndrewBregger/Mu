@@ -223,6 +223,8 @@ namespace mu {
                 case mu::Tkn_Astrick:
                     return Operand(expr);
                     break;
+                default:
+                    break;
             }
             return Operand(expected_type, expr, val);
         }

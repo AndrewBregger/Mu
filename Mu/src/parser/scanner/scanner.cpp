@@ -29,7 +29,7 @@ namespace mu {
 		//}, this->file);
 
         index = 0;
-        position = mu::Pos(1, 0, 0, file->id());
+        position = mu::Pos(1, 1, 0, file->id());
 
 		if (!file->load()) {
 			interp->report_error(this->position, "Failed to load file: '%s'", file->path().string().c_str());

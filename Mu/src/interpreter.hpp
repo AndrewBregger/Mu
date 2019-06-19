@@ -39,11 +39,15 @@ public:
         std::vector<std::string> args;
 
         Context(const std::vector<std::string>& args);
+
+        io::File* get_root();
     };
 
     Interpreter(const std::vector<std::string>& args);
 
     void setup();
+
+    void compile();
 
     InterpResult process(io::File *file);
 
@@ -116,10 +120,6 @@ public:
     mu::Scope* get_prelude();
 
 private:
-
-
-
-
     Context context;
     std::unordered_map<std::string, Atom*> names;
     std::ostream* out;

@@ -49,12 +49,41 @@ namespace mu {
 
     Operand::Operand(ast::Expr* expr) : type(nullptr), expr(expr), error(true) {}
 
-    Typer::Typer(Interpreter *interp) : interp(interp), current_scope(interp->get_prelude()) {
-
+    Typer::Typer(Interpreter *interp) : interp(interp), prelude(interp->get_prelude()) {
     }
 
     void Typer::increment_error() {
         errors_num++;
+    }
+
+
+    Entity* Typer::search_active_scope(ast::Ident* name) {
+        auto e = search_scope(current_scope, name);
+        if(e) {
+            return e;
+        }
+        else {
+            e = search_scope(prelude, name);
+            if(e)
+                return e;
+
+            report(name->pos, "unable to find name '%s'", name->val->value.c_str())
+            return nullptr;
+        }
+    }
+
+    Entity* Typer::search_scope(Scope* scope, ast::Ident* name) {
+        auto curr = scope;
+
+        while(curr) {
+            auto [entity, valid] = curr->find(name);
+            if(valid) {
+                return entity;
+            }
+            curr = curr->get_parent();
+        }
+
+        return nullptr;
     }
 
     Module * Typer::resolve_main_module(ast::ModuleFile *main_module) {
@@ -85,7 +114,7 @@ namespace mu {
     }
 
     void Typer::push_scope(Scope *scope) {
-        current_scope->add_child(scope);
+        if(current_scope) current_scope->add_child(scope);
         if(scope->get_parent() != current_scope)
             interp->fatal("Compiler Error: Pushing a scope where the parent isn't the active scope");
         current_scope = scope;
@@ -167,7 +196,50 @@ namespace mu {
     }
 
     Entity *Typer::resolve(Global *global) {
-        return global;
+        
+        ast::Ident* name{nullptr};
+        ast::Spec* spec{nullptr};
+        ast::Expr* init{nullptr};
+
+        if(global->is_mutable()) {
+            auto declaration = global->get_decl_as<ast::GlobalMut>();
+
+            name = declaration->name;
+            spec = declaration->type.get();
+            init = declaration->init.get();
+
+            if(!spec and !init) {
+                report(name->pos, "global '%s' must have a type or be initialized", name->value().c_str());
+            }
+        }
+        else {
+            auto declaration = global->get_decl_as<ast::Global>();
+
+            name = declaration->name;
+            spec = declaration->type.get();
+            init = declaration->init.get();
+
+            if(!init) {
+                report(name->pos, "constant global '%s' must be initialized", name->value().c_str());
+            }
+        }
+
+        types::Type* resolved_type{nullptr};
+        Operand expr_type(init);
+
+        if(spec)
+            resolved_type = resolve_spec(spec);
+
+        if(init)
+            expr_type = resolve_expr(init, resolved_type);
+
+        if(expr_type.val.is_constant) {
+            // convert this entity to a constant.
+        }
+        else {
+            // global->
+            return global;
+        }
     }
 
     Entity *Typer::resolve(Local *local) {
@@ -209,11 +281,14 @@ namespace mu {
             case ast::ast_unary:
                 result = resolve_unary(expr->as<ast::Unary>(), nullptr);
                 break;
+            default:
+                break;
         }
 
         if(expected_type) {
             // check for compatibility of the resulting type and the expected type.
         }
+        expr->type = result.type;
         return result;
     }
 
@@ -306,6 +381,8 @@ namespace mu {
                             rhs_type->str().c_str())
                         return Operand(expr);
                     }
+                    break;
+                default:
                     break;
             }
         }
@@ -449,8 +526,35 @@ namespace mu {
     // how to make sure multiple of the same type are not created
     types::Type *Typer::resolve_spec(ast::Spec *spec) {
         switch(spec->kind) {
-            case ast::ast_expr_type:
-            case ast::ast_tuple:
+            case ast::ast_expr_type: {
+                auto e = spec->as<ast::ExprSpec>();
+
+                auto entity = resolve_expr_spec(e->type.get());
+
+                if(!entity->is_resolved())
+                    entity->resolve(this);
+                
+                if(entity->is_type())
+                    return entity->get_type();
+                else {
+                    report(e->pos(), "'%s' does not refer to a type", entity->str().c_str());
+                    return nullptr;
+                }
+            } break;
+            case ast::ast_tuple: {
+                auto s = spec->as<ast::TupleSpec>();
+                std::vector<types::Type*> types;
+                u64 sz = 0;
+                for(auto& t : s->elements) {
+                    auto e = resolve_spec(t.get());
+                    if(e) {
+                        types.push_back(e);
+                        e += e->size();
+                    }
+                    return nullptr;
+                }
+                return interp->new_type<types::Tuple>(types, sz);
+            }
             case ast::ast_list_spec:
             case ast::ast_list_spec_dyn:
                 break;
@@ -477,20 +581,87 @@ namespace mu {
                 //
             case ast::ast_procedure_spec: {
                 auto p = spec->as<ast::ProcedureSpec>();
-            }
-
+            } break;
             case ast::ast_type_lit:
                 return nullptr;
             case ast::ast_infer_type:
                 return nullptr;
             case ast::ast_unit_type:
                 return type_unit;
+            default:
+                // report the error
+                break;
         }
     }
 
     Entity *Typer::resolve_expr_spec(ast::Expr *expr) {
+        switch(expr->kind) {
+            case ast::ast_accessor: {
+                auto e = expr->as<ast::Accessor>();
+                return resolve_accessor_spec(e);
+            } break;
+            case ast::ast_name: {
+                auto e = expr->as<ast::Name>();
+                return search_active_scope(e->name);
+            } break;
+            case ast::ast_name_generic: {
+                auto e = expr->as<ast::NameGeneric>();
+                interp->message("Generics is not implemented");
+                // resolves the name and 
+                return nullptr;
+            } break;
+            default:
+                report_str(expr->pos(), "invalid type expression");
+                return nullptr;
+        }
         return nullptr;
     }
 
+    Entity* Typer::resolve_accessor_spec(ast::Accessor* expr) {
+        auto root_entity = resolve_expr_spec(expr->operand.get());
 
+        // if there was an error above then propogate it through the rest.
+        if(!root_entity) return nullptr;
+
+        Scope* scope = nullptr;
+        switch(root_entity->kind()) {
+            case mu::ModuleEntity: {
+                auto mod = CAST_PTR(Module, root_entity);
+                interp->message("Modules are not implemented");
+                return nullptr;
+                // return search_scope(mod->)
+            }
+            case mu::TypeEntity: {
+                auto type = CAST_PTR(Type, root_entity);
+
+                if(type->is_struct()) {
+                    auto struct_type = CAST_PTR(types::StructType, type->get_type());
+                    scope = struct_type->get_scope();
+                }
+                else if(type->is_sumtype()) {
+                    auto sum_type = CAST_PTR(types::SumType, type->get_type());
+                    scope = sum_type->get_scope();
+                }
+                else if(type->is_trait()) {
+                    auto trait_type = CAST_PTR(types::TraitType, type->get_type());
+                    scope = trait_type->get_scope();
+                }
+                else {
+                    report_str(expr->operand->pos(), "type does doesn't have a scope");
+                    return nullptr;
+                }
+
+            } break;
+            default:
+                report_str(expr->operand->pos(), "is not a module, structure, or Sum Type");
+                return nullptr;
+        }
+
+        auto entity = search_scope(scope, expr->name);                    
+        if(!entity) {
+            report(expr->name->pos, "'%s' is not a member of '%s'",
+                    expr->name->value().c_str(), entity->get_name()->value().c_str())
+        }
+        return entity;
+    }
 }

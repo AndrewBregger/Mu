@@ -5,7 +5,7 @@
 #include "io.hpp"
 #include <iostream>
 
-#if defined(MU_APPLE)
+#if defined(MU_APPLE) || defined(MU_LINUX)
     #include <unistd.h>
     #include <cstdlib>
     #include <cstddef>
@@ -33,7 +33,7 @@ io::Path io::Path::get_absolute() const {
     if(path.front() == '/')
         return *this;
 
-    #if defined(MU_APPLE)
+    #if defined(MU_APPLE) || defined(MU_LINUX)
         char temp[PATH_MAX];
         char* ret = realpath(path.c_str(), temp);
         if(ret) {
@@ -54,7 +54,7 @@ io::Path io::Path::get_absolute() {
 }
 
 io::Path io::Path::get_relative(const io::Path &to) const {
-    #if defined(MU_APPLE)
+    #if defined(MU_APPLE) || defined(MU_LINUX)
 //        auto abs_this = get_absolute();
         if(to.is_file()) {
 			
@@ -106,7 +106,7 @@ io::Path io::Path::extension() {
 }
 
 bool io::Path::is_directory() const {
-    #if defined(MU_APPLE)
+    #if defined(MU_APPLE) || defined(MU_LINUX)
     struct stat buffer;
     if(stat (path.c_str(), &buffer) == 0) {
         return S_ISDIR(buffer.st_mode);
@@ -125,7 +125,7 @@ bool io::Path::is_directory() {
 }
 
 bool io::Path::is_file() const {
-    #if defined(MU_APPLE)
+    #if defined(MU_APPLE) || defined(MU_LINUX)
     auto dir = opendir(path.c_str());
     if(dir == nullptr) {
         struct stat buffer;
@@ -148,7 +148,7 @@ bool io::Path::is_file() {
 }
 
 void io::Path::remove_filename() {
-    #if defined(MU_APPLE)
+    #if defined(MU_APPLE) || defined(MU_LINUX)
     #else
     //#error __FUNCTION__ is not implemented for this platform
     #endif

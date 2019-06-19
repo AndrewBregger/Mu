@@ -116,6 +116,7 @@ ast::ModuleFile * mu::Parser::parse_module() {
                 return parse_toplevel();
             },
             [this]() {
+                remove_newlines();
                 return !check(mu::Tkn_Eof);
             },
             Parser::append<ast::DeclPtr>
@@ -439,7 +440,7 @@ ast::DeclPtr mu::Parser::parse_decl(mu::Token token, bool toplevel) {
                     report<false>(current().pos(), "'let' and 'mut' following 'pub' is only allowed in global scope");
                 }
                 decl = parse_variable(token.kind());
-            }
+            } break;
         default:
             report(token.pos(), "invalid declaration, expecting '@', 'let', 'mut', 'use', or identifier. Found '%s'",
                     token.get_string().c_str());
@@ -1311,6 +1312,7 @@ bool mu::Parser::sync_after_error() {
             case mu::Tkn_Let:
             case mu::Tkn_Mut:
             case mu::Tkn_Use:
+            case mu::Tkn_Eof:
                 return true;
             default:
                 advance(true);
@@ -1397,6 +1399,8 @@ ast::DeclPtr mu::Parser::parse_usepath() {
                     return ast::make_decl<ast::UsePathAlias>(path, name.ident, pos);
                 }
             }
+            default:
+                break;
         }
     }
     else {

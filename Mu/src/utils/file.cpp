@@ -53,7 +53,7 @@ namespace io {
             u64 index = 0;
             u64 start = index;
 
-            while(content[index] != '\n')
+            while(index < content.size() and content[index] != '\n')
                 index++;
 
             line_cache.push_back(LineInfo {content.substr(start, index - start), start, index});
@@ -65,7 +65,7 @@ namespace io {
         u64 start = startIndex;
 
         while(line_cache.size() < line) {
-            while(content[startIndex] != '\n')
+            while(startIndex < content.size() and content[startIndex] != '\n')
                 startIndex++;
             line_cache.push_back(LineInfo {content.substr(start, startIndex - start), start, startIndex});
             start = ++startIndex;

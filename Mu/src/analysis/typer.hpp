@@ -81,6 +81,12 @@ namespace mu {
 
             Entity* resolve_entity(Entity* entity);
 
+            // search the typers active scope for the name.
+            Entity* search_active_scope(ast::Ident* name);
+
+            // search the given scope for the name.
+            Entity* search_scope(Scope* scope, ast::Ident* name);
+
             // checks for a ren
             bool is_redeclaration(Atom* name);
 
@@ -142,6 +148,8 @@ namespace mu {
             // as types.
             Entity* resolve_expr_spec(ast::Expr* expr);
 
+            Entity* resolve_accessor_spec(ast::Accessor* expr);
+
             types::Type* resolve_function_spec(ast::ProcedureSpec* proc_spec);
 
 //            template <typename... Args>
@@ -153,10 +161,11 @@ namespace mu {
 
             void increment_error();
 
-            Interpreter* interp{nullptr};
-            Scope* current_scope{nullptr};
+            Interpreter* interp{nullptr};   // pointer to the interpreter object.
+            Scope* current_scope{nullptr};  // the current scope being resolved.
+            Scope* prelude{nullptr};        // a pointer to the prelude scope.
 
-            u32 errors_num{0};
+            u32 errors_num{0};              // the number of errors
     };
 }
 

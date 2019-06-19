@@ -10,12 +10,16 @@ int main(i32 argc, const char** argv) {
     std::vector<std::string> args;
     args.reserve(argc);
 
-    for(i32 i = 0; i < argc; ++i)
+    // the first argument is always the executable.
+    for(i32 i = 1; i < argc; ++i)
         args.emplace_back(argv[i]);
 
     Interpreter interp(args);
     interp.set_stream(&std::cout);
 
-    io::File file(io::Path("tests/simple_expr.mu"));
-    interp.process(&file);
+    if(args.size() == 0)
+        interp.fatal("missing input file");
+    else {
+        interp.compile();
+    }
 }

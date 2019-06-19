@@ -8,6 +8,11 @@
 struct Atom;
 
 namespace mu {
+
+    namespace types {
+        class Type;
+    }
+
     struct Pos {
         u64 line;
         u64 column;
@@ -179,6 +184,7 @@ namespace ast {
     struct AstNode {
        AstKind kind;
        mu::Pos position;
+       mu::types::Type* type;
 
        AstNode(AstKind kind, const mu::Pos& pos) : kind(kind), position(pos) {}
 

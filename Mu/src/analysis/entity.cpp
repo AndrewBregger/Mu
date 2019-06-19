@@ -5,6 +5,8 @@
 #include "entity.hpp"
 #include "interpreter.hpp"
 #include "typer.hpp"
+
+#include <algorithm>
 #include <stack>
 
 namespace mu {

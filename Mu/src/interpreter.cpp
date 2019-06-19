@@ -33,6 +33,22 @@ Interpreter::Context::Context(const std::vector<std::string> &args) : args(args)
     dir = new io::Directory(io::Path("."), true);
 }
 
+io::File* Interpreter::Context::get_root() {
+    // the first file is assumed to be the root file containing main function.
+
+    auto root_file = args.front();
+
+    auto path = io::Path(root_file);
+
+    auto [file, valid] = dir->search(path);
+    if(valid) {
+        if(file->is_file())
+            return CAST_PTR(io::File, file);
+        else
+            return nullptr;    
+    }
+}
+
 Interpreter::Interpreter(const std::vector<std::string> &args) : context(args) {
     if(instance) {
         std::cerr << "Multiple instances of interpreter" << std::endl;
@@ -116,6 +132,12 @@ void Interpreter::setup() {
     std::cout << type_u8_entity->path().str() << std::endl;
 }
 
+void Interpreter::compile() {
+    auto root = context.get_root();
+
+    auto res = process(root);
+}
+
 InterpResult Interpreter::process(io::File *file) {
     mu::Parser parser(this);
     mu::Typer typer(this);
@@ -133,7 +155,7 @@ InterpResult Interpreter::process(io::File *file) {
 
 void Interpreter::print_file_pos(const mu::Pos &pos) {
     auto file = find_file_by_id(pos.fid);
-    out_stream() << file->absolute_path() << pos;
+    out_stream() << file->absolute_path() << ":" << pos << " ";
 }
 
 void Interpreter::print_file_section(const mu::Pos &pos) {

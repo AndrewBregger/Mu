@@ -116,6 +116,20 @@ namespace mu {
 
         TypePath path();
 
+        inline ast::Decl* get_decl() { return decl.get(); }
+
+        template <typename Ty>
+        Ty* get_decl_as() { return decl.template as<Ty>(); }
+
+
+        virtual bool is_global() { return false; }
+        virtual bool is_local() { return false; }
+        virtual bool is_constant() { return false; }
+        virtual bool is_type() { return false; }
+        virtual bool is_module() { return false; }
+        virtual bool is_function() { return false; }
+        virtual bool is_alias() { return false; }
+
         virtual std::string str() = 0;
 
         // I am not sure what this should return.
@@ -142,8 +156,12 @@ namespace mu {
         inline AddressType address() { return addr_type; }
 
         void resolve(Typer* typer) override;
+        
+        bool is_local() override { return true; }
 
         std::string str() override;
+
+        inline bool is_mutable() { return mut; }
     private:
         AddressType addr_type{Unknown};
         bool mut{false};
@@ -163,7 +181,12 @@ namespace mu {
 
         inline AddressType address() { return addr_type; }
         std::string str() override;
+
+        bool is_global() override { return true; }
+
         void resolve(Typer* typer) override;
+
+        inline bool is_mutable() { return mut; }
 
 
     private:
@@ -179,6 +202,9 @@ namespace mu {
         virtual ~Constant();
 
         std::string str() override;
+
+        bool is_constant() override { return true; }
+
         void resolve(Typer* typer) override;
 
     private:
@@ -187,23 +213,25 @@ namespace mu {
 
     class Type : public Entity {
     public:
-       Type(ast::Ident* name, types::Type* type, Scope* p, ast::DeclPtr decl);
+        Type(ast::Ident* name, types::Type* type, Scope* p, ast::DeclPtr decl);
 
-       Type(ast::Ident* name, Scope* p, ast::DeclPtr decl);
+        Type(ast::Ident* name, Scope* p, ast::DeclPtr decl);
 
-       virtual ~Type();
+        virtual ~Type();
 
         std::string str() override;
 
-       bool is_struct();
+        bool is_type() override { return true; }
 
-       bool is_sumtype();
+        bool is_struct();
 
-       bool is_trait();
+        bool is_sumtype();
 
-       bool is_polymorphic();
+        bool is_trait();
 
-       void resolve(Typer* typer) override;
+        bool is_polymorphic();
+
+        void resolve(Typer* typer) override;
 
     };
 
@@ -220,6 +248,8 @@ namespace mu {
 
         void resolve(Typer* typer) override;
 
+        bool is_function() override { return true; }
+
     private:
         std::unordered_map<ast::Ident*, Local*> params;
         ParameterScope* param_scope{nullptr};
@@ -235,6 +265,8 @@ namespace mu {
         std::string str() override;
         void resolve(Typer* typer) override;
 
+        bool is_alias() override { return true; }
+
     private:
         ast::Ident* name;
     };
@@ -247,6 +279,8 @@ namespace mu {
         virtual ~Module();
 
         std::string str() override;
+
+        bool is_module() override { return true; }
 
     private:
         ModuleScope* exported_scope{nullptr};

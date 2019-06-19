@@ -44,7 +44,7 @@ typedef u32 rune;
     #define MU_WIN
 #elif defined(__CYGWIN32__)
     #define MU_WIN
-#elif defined(__LINUX__)
+#elif defined(__LINUX__) || defined(__linux__) || defined(__unix) || defined(__UNIX__) || defined(__linux) || defined(__LINUX)
     #define MU_LINUX
 #endif
 

@@ -367,6 +367,8 @@ namespace mu {
 
             bool is_struct() override;
 
+            inline MemberScope* get_scope() { return member_scope; }
+
             std::string str() override;
 
         private:
@@ -391,6 +393,8 @@ namespace mu {
             bool is_stype() override;
 
             std::string str() override;
+
+            inline MemberScope* get_scope() { return member_scope; }
 
         private:
             ast::Ident *name;
@@ -443,6 +447,8 @@ namespace mu {
             bool is_trait() override;
 
             std::string str() override;
+
+            inline MemberScope* get_scope() { return member_scope; }
 
         private:
             ast::Ident *name;

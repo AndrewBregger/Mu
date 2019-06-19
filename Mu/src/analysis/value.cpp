@@ -54,7 +54,7 @@ namespace mu {
         } break; \
         case types::Primitive_I16: { \
             this->_I16 = (i16) this->val; \
-        } \
+        } break; \
         case types::Primitive_I32: { \
             this->_I32 = (i32) this->val; \
         } break;  \
