@@ -13,10 +13,10 @@ namespace mu {
 
     TypePath::TypePath() {}
 
-    TypePath::TypePath(const std::vector<Scope *> &scopes) : scopes(scopes) {
+    TypePath::TypePath(const std::vector<ScopePtr> &scopes) : scopes(scopes) {
     }
 
-    void TypePath::push_scope(Scope *scope) {
+    void TypePath::push_scope(ScopePtr scope) {
         if(scope->get_name() != nullptr)
             scopes.push_back(scope);
         else {
@@ -36,9 +36,9 @@ namespace mu {
         return p;
     }
 
-    Scope *TypePath::scope_by_name(Atom *name) {
+    ScopePtr TypePath::scope_by_name(Atom *name) {
         auto iter = std::search_n(scopes.begin(), scopes.end(), scopes.size(), name,
-            [](Scope* s, Atom* n){
+            [](ScopePtr s, Atom* n){
                 auto name = s->get_name();
                 // this shouldn't happen
                 if(name) {
@@ -69,7 +69,7 @@ namespace mu {
         return s;
     }
 
-    Entity::Entity(ast::Ident *name, Scope* p, EntityKind k, ast::DeclPtr decl) :
+    Entity::Entity(ast::Ident *name, ScopePtr p, EntityKind k, ast::DeclPtr decl) :
         k(k), type(nullptr), parent(p), name(name), decl(decl) {
     }
 
@@ -81,7 +81,7 @@ namespace mu {
 
     TypePath Entity::path() {
         TypePath p;
-        std::stack<Scope*> scopes;
+        std::stack<ScopePtr> scopes;
         auto curr = parent;
         // collect the scopes
         while(curr) {
@@ -103,7 +103,7 @@ namespace mu {
         return p;
     }
 
-    Scope *Entity::scope() {
+    ScopePtr Entity::scope() {
         return parent;
     }
 
@@ -115,17 +115,42 @@ namespace mu {
         return name;
     }
 
-
-    void Entity::resolve(Typer *typer) {
-        typer->resolve_entity(this);
+    void Entity::resolve_to(types::Type* type) {
+        this->type = type;
+        resolved = Resolved;
     }
 
-    Global::Global(ast::Ident *name, types::Type *type, AddressType addr_type, Scope* p, ast::DeclPtr decl) :
+
+    Entity* Entity::resolve(Typer *typer) {
+        return typer->resolve_entity(this);
+    }
+    
+    void Entity::debug_print(std::ostream& out) {
+        if(is_resolved())
+            out << "\ttype: " << type->str() << std::endl;
+
+        out << "\tparent: " << (parent->get_name() ? parent->get_name()->value() : "") << std::endl;
+        out << "\tstatus: ";
+            switch(resolved) {
+                case Incomplete:
+                    out << "Incomplete";
+                    break;
+                case Resolving:
+                    out << "Resolving";
+                    break;
+                case Resolved:
+                    out << "Resolved";
+                    break;
+            }
+            out << std::endl;
+    }
+
+    Global::Global(ast::Ident *name, types::Type *type, AddressType addr_type, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, GlobalEntity, decl), addr_type(addr_type), mut(decl->kind == ast::ast_global_mut) {
         this->type = type;
     }
 
-    Global::Global(ast::Ident *name, Scope* p, ast::DeclPtr decl) : Global(name, nullptr, Unknown, p, decl) {
+    Global::Global(ast::Ident *name, ScopePtr p, ast::DeclPtr decl) : Global(name, nullptr, Unknown, p, decl) {
     }
 
     Global::~Global() = default;
@@ -135,20 +160,67 @@ namespace mu {
         return s + name->value();
     }
 
-    void Global::resolve(Typer *typer) {
-        typer->resolve(this);
+    Entity* Global::resolve(Typer *typer) {
+        return typer->resolve(this);
     }
 
-    Local::Local(ast::Ident *name, types::Type *type, AddressType addr_type, Scope* p, ast::DeclPtr decl) :
+    void Global::set_addressing(AddressType t) {
+        addr_type = t;
+    }
+
+    void Global::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << "\tinitialized: " << (initialized ? "true" : "false") << std::endl;
+        out << "\tmutable: " << (mut? "true" : "false") << std::endl;
+        out << "\taddressing: ";
+        switch(addr_type) {
+            case Value:
+                out << "Value";
+                break;
+            case Reference:
+                out << "Reference/Pointer";
+                break;
+            case Unknown:
+                out << "Unknown";
+                break;
+        }
+        out << std::endl;
+        out << '}' << std::endl;
+    }
+
+    Local::Local(ast::Ident *name, types::Type *type, AddressType addr_type, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, LocalEntity, decl), addr_type(addr_type), mut(decl->kind == ast::ast_mut) {
         this->type = type;
+    }
 
+    void Local::set_addressing(AddressType t) {
+        addr_type = t;
     }
 
     Local::~Local() = default;
 
-    void Local::resolve(Typer *typer) {
-        typer->resolve(this);
+    Entity* Local::resolve(Typer *typer) {
+        return typer->resolve(this);
+    }
+
+    void Local::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << "\tinitialized: " << (initialized ? "true" : "false") << std::endl;
+        out << "\tmutable: " << (mut? "true" : "false") << std::endl;
+        out << "\taddressing: ";
+        switch(addr_type) {
+            case Value:
+                out << "Value";
+                break;
+            case Reference:
+                out << "Reference/Pointer";
+                break;
+            case Unknown:
+                out << "Unknown";
+                break; } out << std::endl;
+        out << '}' << std::endl;
     }
 
     std::string Local::str() {
@@ -156,14 +228,22 @@ namespace mu {
         return s + name->value();
     }
 
-    Constant::Constant(ast::Ident *name, types::Type *type, mu::Val val, Scope* p, ast::DeclPtr decl) : Entity(name, p, ConstantEntity, decl),
+    Constant::Constant(ast::Ident *name, types::Type *type, mu::Val val, ScopePtr p, ast::DeclPtr decl) : Entity(name, p, ConstantEntity, decl),
         val(val) {
+        this->type = type;
     }
 
     Constant::~Constant() = default;
 
-    void Constant::resolve(Typer *typer) {
-        typer->resolve(this);
+    Entity* Constant::resolve(Typer *typer) {
+        return typer->resolve(this);
+    }
+
+    void Constant::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << "\tvalue: " << val << std::endl;
+        out << '}' << std::endl;
     }
 
 
@@ -171,14 +251,20 @@ namespace mu {
         return "const " + name->value();
     }
 
-    Alias::Alias(ast::Ident *name, types::Type *type, Scope* p, ast::DeclPtr decl) : Entity(name, p, AliasEntity, decl){
+    Alias::Alias(ast::Ident *name, types::Type *type, ScopePtr p, ast::DeclPtr decl) : Entity(name, p, AliasEntity, decl){
         this->type = type;
     }
 
     Alias::~Alias() = default;
 
-    void Alias::resolve(Typer *typer) {
-        typer->resolve(this);
+    Entity* Alias::resolve(Typer *typer) {
+        return typer->resolve(this);
+    }
+
+    void Alias::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << '}' << std::endl;
     }
 
     std::string Alias::str() {
@@ -186,41 +272,58 @@ namespace mu {
     }
 
     Function::Function(ast::Ident *name, const std::unordered_map<ast::Ident *, Local *> &params,
-                       ScopePtr params_scope_ptr, types::Type *type, Scope* p, ast::DeclPtr decl) :
+                       ScopePtr param_scope_ptr, types::Type *type, ScopePtr p, ast::DeclPtr decl) :
                        Entity(name, p, FunctionEntity, decl), params(params), param_scope_ptr(param_scope_ptr) {
-        param_scope = params_scope_ptr.as<ParameterScope>();
+        this->type = type;
+        param_scope = param_scope_ptr->as<ParameterScope>();
         if(!param_scope) {
             auto interp = Interpreter::get();
             interp->fatal("Compiler Error: invalid parameter given to function entity");
         }
     }
 
-    Function::Function(ast::Ident *name, Scope* p, ast::DeclPtr decl) :
+    Function::Function(ast::Ident *name, ScopePtr p, ast::DeclPtr decl) :
         Function(name, {}, nullptr, nullptr, p, decl){
     }
 
     Function::~Function() = default;
 
-    void Function::resolve(Typer *typer) {
-       typer->resolve(this);
+    void Function::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << "\tparams: [" << std::endl;
+        for(auto [id, e] : params) {
+            e->debug_print(out);
+        }
+        out << ']' << std::endl;
+        out << '}' << std::endl;
+    }
+
+    Entity* Function::resolve(Typer *typer) {
+       return typer->resolve(this);
     }
 
     std::string Function::str() {
         return "fn " + name->value();
     }
 
-    Type::Type(ast::Ident *name, types::Type *type, Scope* p, ast::DeclPtr decl) :
+    Type::Type(ast::Ident *name, types::Type *type, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, TypeEntity, decl) {
-        this->type = type;
     }
 
-    Type::Type(ast::Ident *name, Scope* p, ast::DeclPtr decl) : Type(name, nullptr, p, decl) {
+    Type::Type(ast::Ident *name, ScopePtr p, ast::DeclPtr decl) : Type(name, nullptr, p, decl) {
+    }
+
+    void Type::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << '}' << std::endl;
     }
 
     Type::~Type() = default;
 
-    void Type::resolve(Typer *typer) {
-        typer->resolve(this);
+    Entity* Type::resolve(Typer *typer) {
+        return typer->resolve(this);
     }
 
     std::string Type::str() {
@@ -272,16 +375,22 @@ namespace mu {
     }
 
 
-    Module::Module(ast::Ident *name, types::Type *type, ScopePtr exproted_scope_ptr, Scope *p, ast::DeclPtr decl) :
+    Module::Module(ast::Ident *name, types::Type *type, ScopePtr exproted_scope_ptr, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, ModuleEntity, decl), exported_scope_ptr(exproted_scope_ptr){
         this->type = type;
     }
 
-    Module::Module(ast::Ident *name, Scope* p, ast::DeclPtr decl) :
+    Module::Module(ast::Ident *name, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, ModuleEntity, decl) {
     }
 
     Module::~Module() = default;
+
+    void Module::debug_print(std::ostream& out) {
+        out << this->str() << '{' << std::endl;
+        Entity::debug_print(out);
+        out << '}' << std::endl;
+    }
 
     std::string Module::str() {
         return "mod " + name->value();

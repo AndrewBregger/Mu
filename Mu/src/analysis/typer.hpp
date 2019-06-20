@@ -63,32 +63,45 @@ namespace mu {
         public:
             Typer(Interpreter* interp);
 
-            // loads a module according to given use declaration;
-            // the function will check what type of use is given.
-            void load_module(ast::Decl* use_decl);
+
+
+            /*-----------------------------Misc------------------------------*/
+            // checks for a ren
+            bool is_redeclaration(ast::Ident* name);
+
+            AddressType get_addressing_by_type(types::Type* type);
+
+            types::Type* existing_type(types::Type* type);
+
+            /*-----------------------Module Handling-------------------------*/
 
             // processes the main file, it must have main function.
             Module * resolve_main_module(ast::ModuleFile *main_module);
 
-            // adds entity to the current active scope.
-            void add_entity(Entity* entity);
+            // loads a module according to given use declaration;
+            // the function will check what type of use is given.
+            void load_module(ast::Decl* use_decl);
 
-            void push_scope(Scope* scope);
-
-            void pop_scope();
-
-            Entity* build_top_level_entity(ast::Decl* decl);
-
-            Entity* resolve_entity(Entity* entity);
+            /*-----------------------Scope Handling--------------------------*/
 
             // search the typers active scope for the name.
             Entity* search_active_scope(ast::Ident* name);
 
-            // search the given scope for the name.
-            Entity* search_scope(Scope* scope, ast::Ident* name);
+            void push_scope(ScopePtr  scope);
 
-            // checks for a ren
-            bool is_redeclaration(Atom* name);
+            void pop_scope();
+
+            // adds entity to the current active scope.
+            void add_entity(Entity* entity);
+
+            // search the given scope for the name.
+            Entity* search_scope(ScopePtr  scope, ast::Ident* name);
+
+
+            /*-----------------------Entity Handling-------------------------*/
+            Entity* build_top_level_entity(ast::DeclPtr decl);
+
+            Entity* resolve_entity(Entity* entity);
 
             Entity* resolve(Global* global);
             Entity* resolve(Local* local);
@@ -98,6 +111,27 @@ namespace mu {
             Entity* resolve(Constant* constant);
 
 
+            /*--------------------Declaration Handling-----------------------*/
+
+            Entity* resolve_struct(Type* entity, ast::DeclPtr decl_ptr);
+            Entity* resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr);
+
+            types::FunctionType* resolve_function_signiture(ast::ProcedureSigniture* sig);
+            Entity* resolve_function(Type* entity,ast::DeclPtr decl_ptr); 
+            Entity* resolve_poly_function(Type* entity, ast::DeclPtr decl_ptr);
+
+
+            Entity* resolve_sumtype(Type* entity, ast::DeclPtr decl_ptr);
+            Entity* resolve_poly_sumtype(Type* entity, ast::DeclPtr decl_ptr);
+
+            Entity* resolve_trait(Type* entity, ast::DeclPtr decl_ptr);
+            Entity* resolve_poly_trait(Type* entity, ast::DeclPtr decl_ptr);
+
+            Entity* resolve_local_from_decl(ast::DeclPtr local);
+
+            std::vector<Local*> resolve_member_variable(ast::DeclPtr decl_ptr);
+
+            /*--------------------Expression Handling-----------------------*/
 
             // resolves an expression with an expected type.
             // if a type is known (function parameter) the resulting type will
@@ -140,6 +174,7 @@ namespace mu {
 
             Operand resolve_literals(ast::Expr* expr);
 
+            /*--------------------------Spec Handling----------------------------*/
             // resolve a type spec to the type it specifies.
             types::Type* resolve_spec(ast::Spec* spec);
 
@@ -159,11 +194,20 @@ namespace mu {
 
         private:
 
+            struct Context {
+                Entity*     impl_block_entity{nullptr}; // the Self entity when resolving an impl block
+                Entity*  entity_active_entity{nullptr}; // current entity being resolved
+                bool resolving_loop{false};             // true when resolving for, while, loop
+                ScopePtr current_scope{nullptr};  // the current scope being resolved.
+            };
+
             void increment_error();
+            ScopePtr active_scope();
 
             Interpreter* interp{nullptr};   // pointer to the interpreter object.
-            Scope* current_scope{nullptr};  // the current scope being resolved.
-            Scope* prelude{nullptr};        // a pointer to the prelude scope.
+            ScopePtr prelude{nullptr};        // a pointer to the prelude scope.
+
+            Context context;
 
             u32 errors_num{0};              // the number of errors
     };

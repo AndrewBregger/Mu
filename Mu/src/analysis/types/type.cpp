@@ -215,7 +215,7 @@ mu::types::StructType::StructType(ast::Ident *name, const std::unordered_map<ast
                                   Type(StructureType, sz), name(name), members(members), member_scope_ptr(member_scope_ptr),
                                   declaration(declaration) {
 
-   member_scope = member_scope_ptr.as<MemberScope>();
+   member_scope = member_scope_ptr->as<MemberScope>();
    if(!member_scope) {
        auto interp = Interpreter::get();
        interp->fatal("Compiler Error: invalid member scope given to struct type");
@@ -226,6 +226,10 @@ mu::types::StructType::~StructType() = default;
 
 bool mu::types::StructType::is_struct() {
     return true;
+}
+
+mu::types::Type* mu::types::StructType::base_type() {
+    return this;
 }
 
 std::string mu::types::StructType::str() {
@@ -263,6 +267,20 @@ std::string mu::types::FunctionType::str() {
     return s;
 }
 
+u64 mu::types::FunctionType::num_params() {
+    return params.size();
+}
+
+mu::types::Type* mu::types::FunctionType::get_ret() {
+    return ret;
+}
+
+mu::types::Type* mu::types::FunctionType::get_param(u64 i) {
+    assert(i < num_params());
+
+    return params[i];
+}
+
 mu::types::TypeField::TypeField(ast::Ident *name, mu::types::Type *default_type) :
     name(name), default_type(default_type) {
 }
@@ -280,7 +298,7 @@ mu::types::SumType::SumType(ast::Ident *name, const std::unordered_map<ast::Iden
                             mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration) : Type(SType, sz),
                         name(name), members(members), member_scope_ptr(member_scope_ptr),
                         declaration(declaration) {
-    member_scope = member_scope_ptr.as<MemberScope>();
+    member_scope = member_scope_ptr->as<MemberScope>();
     if(!member_scope) {
         auto interp = Interpreter::get();
         interp->fatal("Compiler Error invalid member scope of sum type");
@@ -302,7 +320,7 @@ mu::types::TraitType::TraitType(ast::Ident *name, const std::unordered_set<TypeF
                                 Entity *declaration) : Type(TraitAttributeType, 0), name(name),
                                 type_fields(type_field), members(members), member_scope_ptr(member_scope_ptr),
                                 declaration(declaration) {
-    member_scope = member_scope_ptr.as<MemberScope>();
+    member_scope = member_scope_ptr->as<MemberScope>();
     if(!member_scope) {
         auto interp = Interpreter::get();
         interp->fatal("Compiler Error: invalid member scope of trait type");
@@ -323,8 +341,8 @@ mu::types::PolyStructType::PolyStructType(ast::Ident *name, const std::unordered
                                           ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration) : Type(PolyStructureType, 0),
                                           name(name), members(members), member_scope_ptr(member_scope_ptr),
                                           const_block_ptr(const_block_ptr), declaration(declaration) {
-    member_scope = member_scope_ptr.as<MemberScope>();
-    const_block = const_block_ptr.as<ConstBlockScope>();
+    member_scope = member_scope_ptr->as<MemberScope>();
+    const_block = const_block_ptr->as<ConstBlockScope>();
 
     if(!member_scope) {
         auto interp = Interpreter::get();
@@ -363,8 +381,8 @@ mu::types::PolySumType::PolySumType(ast::Ident *name, const std::unordered_map<a
                                 Type(PolySType, 0), name(name), members(members), member_scope_ptr(member_scope_ptr),
                                 const_block_ptr(const_block_ptr), declaration(declaration) {
 
-    member_scope = member_scope_ptr.as<MemberScope>();
-    const_block = const_block_ptr.as<ConstBlockScope>();
+    member_scope = member_scope_ptr->as<MemberScope>();
+    const_block = const_block_ptr->as<ConstBlockScope>();
 
     if(!member_scope) {
         auto interp = Interpreter::get();
@@ -402,7 +420,7 @@ mu::types::PolyFunction::PolyFunction(const std::vector<Type *> &params, Type *r
                                       Entity *declaration) : Type(PolyFunctionType, 0),
                                                              params(params), ret(ret), const_block_ptr(const_block_ptr),
                                                              declaration(declaration) {
-    const_block = const_block_ptr.as<ConstBlockScope>();
+    const_block = const_block_ptr->as<ConstBlockScope>();
     if(!const_block) {
         auto interp = Interpreter::get();
         interp->fatal("Compiler Error: invalid const member scope given to polymorphic function");
@@ -445,8 +463,8 @@ mu::types::PolyTraitType::PolyTraitType(ast::Ident *name,
                                         Type(PolyTraitAttributeType, 0), name(name),
                                         type_fields(type_fields), members(members), member_scope_ptr(member_scope_ptr),
                                         const_block_ptr(const_block_ptr), declaration(declaration) {
-    member_scope = member_scope_ptr.as<MemberScope>();
-    const_block = const_block_ptr.as<ConstBlockScope>();
+    member_scope = member_scope_ptr->as<MemberScope>();
+    const_block = const_block_ptr->as<ConstBlockScope>();
 
     if(!member_scope) {
         auto interp = Interpreter::get();

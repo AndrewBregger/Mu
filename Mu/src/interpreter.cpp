@@ -82,38 +82,51 @@ void Interpreter::setup() {
     prelude = mu::make_scope<mu::ModuleScope>(new ast::Ident(find_name("_prelude"), mu::Pos()), nullptr, nullptr);
 
     // use the platform to determine the size of these types.
-    type_u8  = new_type<PrimitiveInt>(Primitive_U8,  (u64) 1);
-    type_u16 = new_type<PrimitiveInt>(Primitive_U16, (u64) 2);
-    type_u32 = new_type<PrimitiveInt>(Primitive_U32, (u64) 4);
-    type_u64 = new_type<PrimitiveInt>(Primitive_U64, (u64) 8);
+    type_u8  =  checked_new_type<PrimitiveInt>(Primitive_U8,  (u64) 1);
+    type_u16 =  checked_new_type<PrimitiveInt>(Primitive_U16, (u64) 2);
+    type_u32 =  checked_new_type<PrimitiveInt>(Primitive_U32, (u64) 4);
+    type_u64 =  checked_new_type<PrimitiveInt>(Primitive_U64, (u64) 8);
 
-    type_i8  = new_type<PrimitiveInt>(Primitive_I8,  (u64) 1);
-    type_i16 = new_type<PrimitiveInt>(Primitive_I16, (u64) 2);
-    type_i32 = new_type<PrimitiveInt>(Primitive_I32, (u64) 4);
-    type_i64 = new_type<PrimitiveInt>(Primitive_I64, (u64) 8);
+    type_i8  =  checked_new_type<PrimitiveInt>(Primitive_I8,  (u64) 1);
+    type_i16 =  checked_new_type<PrimitiveInt>(Primitive_I16, (u64) 2);
+    type_i32 =  checked_new_type<PrimitiveInt>(Primitive_I32, (u64) 4);
+    type_i64 =  checked_new_type<PrimitiveInt>(Primitive_I64, (u64) 8);
 
-    type_f32 = new_type<PrimitiveFloat>(Primitive_Float32, (u64) 4);
-    type_f64 = new_type<PrimitiveFloat>(Primitive_Float64, (u64) 8);
+    type_f32 =  checked_new_type<PrimitiveFloat>(Primitive_Float32, (u64) 4);
+    type_f64 =  checked_new_type<PrimitiveFloat>(Primitive_Float64, (u64) 8);
 
-    type_char = new_type<PrimitiveInt>(Primitive_Char, (u64) 1);
-    type_bool = new_type<PrimitiveInt>(Primitive_Bool, (u64) 1);
+    type_char = checked_new_type<PrimitiveInt>(Primitive_Char, (u64) 1);
+    type_bool = checked_new_type<PrimitiveInt>(Primitive_Bool, (u64) 1);
 
-    type_unit = new_type<UnitType>();
+    type_unit = checked_new_type<UnitType>();
 
-    auto type_u8_entity  =  new_entity<mu::Type>(new ast::Ident(find_name("u8"),   mu::Pos()), type_u8,  prelude.get(), nullptr);
-    auto type_u16_entity =  new_entity<mu::Type>(new ast::Ident(find_name("u16"),  mu::Pos()), type_u16, prelude.get(), nullptr);
-    auto type_u32_entity =  new_entity<mu::Type>(new ast::Ident(find_name("u32"),  mu::Pos()), type_u32, prelude.get(), nullptr);
-    auto type_u64_entity =  new_entity<mu::Type>(new ast::Ident(find_name("u64"),  mu::Pos()), type_u64, prelude.get(), nullptr);
-    auto type_i8_entity  =  new_entity<mu::Type>(new ast::Ident(find_name("i8"),   mu::Pos()), type_i8,  prelude.get(), nullptr);
-    auto type_i16_entity =  new_entity<mu::Type>(new ast::Ident(find_name("i16"),  mu::Pos()), type_i16, prelude.get(), nullptr);
-    auto type_i32_entity =  new_entity<mu::Type>(new ast::Ident(find_name("i32"),  mu::Pos()), type_i32, prelude.get(), nullptr);
-    auto type_i64_entity =  new_entity<mu::Type>(new ast::Ident(find_name("i64"),  mu::Pos()), type_i64, prelude.get(), nullptr);
-    auto type_f32_entity =  new_entity<mu::Type>(new ast::Ident(find_name("f32"),  mu::Pos()), type_f32, prelude.get(), nullptr);
-    auto type_f64_entity =  new_entity<mu::Type>(new ast::Ident(find_name("f64"),  mu::Pos()), type_f64, prelude.get(), nullptr);
-    auto type_char_entity = new_entity<mu::Type>(new ast::Ident(find_name("char"), mu::Pos()), type_char, prelude.get(), nullptr);
-    auto type_bool_entity = new_entity<mu::Type>(new ast::Ident(find_name("bool"), mu::Pos()), type_bool, prelude.get(), nullptr);
-    auto type_unit_entity = new_entity<mu::Type>(new ast::Ident(find_name("Unit"), mu::Pos()), type_unit, prelude.get(), nullptr);
+    auto type_u8_entity  =  new_entity<mu::Type>(new ast::Ident(find_name("u8"),   mu::Pos()), prelude, nullptr);
+    auto type_u16_entity =  new_entity<mu::Type>(new ast::Ident(find_name("u16"),  mu::Pos()), prelude, nullptr);
+    auto type_u32_entity =  new_entity<mu::Type>(new ast::Ident(find_name("u32"),  mu::Pos()), prelude, nullptr);
+    auto type_u64_entity =  new_entity<mu::Type>(new ast::Ident(find_name("u64"),  mu::Pos()), prelude, nullptr);
+    auto type_i8_entity  =  new_entity<mu::Type>(new ast::Ident(find_name("i8"),   mu::Pos()), prelude, nullptr);
+    auto type_i16_entity =  new_entity<mu::Type>(new ast::Ident(find_name("i16"),  mu::Pos()), prelude, nullptr);
+    auto type_i32_entity =  new_entity<mu::Type>(new ast::Ident(find_name("i32"),  mu::Pos()), prelude, nullptr);
+    auto type_i64_entity =  new_entity<mu::Type>(new ast::Ident(find_name("i64"),  mu::Pos()), prelude, nullptr);
+    auto type_f32_entity =  new_entity<mu::Type>(new ast::Ident(find_name("f32"),  mu::Pos()), prelude, nullptr);
+    auto type_f64_entity =  new_entity<mu::Type>(new ast::Ident(find_name("f64"),  mu::Pos()), prelude, nullptr);
+    auto type_char_entity = new_entity<mu::Type>(new ast::Ident(find_name("char"), mu::Pos()),  prelude, nullptr);
+    auto type_bool_entity = new_entity<mu::Type>(new ast::Ident(find_name("bool"), mu::Pos()),  prelude, nullptr);
+    auto type_unit_entity = new_entity<mu::Type>(new ast::Ident(find_name("Unit"), mu::Pos()),  prelude, nullptr);
 
+    type_u8_entity->resolve_to(type_u8);
+    type_u16_entity->resolve_to(type_u16);
+    type_u32_entity->resolve_to(type_u32);
+    type_u64_entity->resolve_to(type_u64);
+    type_i8_entity->resolve_to(type_i8);
+    type_i16_entity->resolve_to(type_i16);
+    type_i32_entity->resolve_to(type_i32);
+    type_i64_entity->resolve_to(type_i64);
+    type_f32_entity->resolve_to(type_f32);
+    type_f64_entity->resolve_to(type_f64);
+    type_char_entity->resolve_to(type_char);
+    type_bool_entity->resolve_to(type_bool);
+    type_unit_entity->resolve_to(type_unit);
 
     prelude->insert(type_u8_entity->get_name(),   type_u8_entity);
     prelude->insert(type_u16_entity->get_name(),  type_u16_entity);
@@ -184,12 +197,29 @@ void Interpreter::quit() {
     exit(1);
 }
 
-mu::Scope* Interpreter::get_prelude() {
-    return prelude.get();
+mu::ScopePtr Interpreter::get_prelude() {
+    return prelude;
 }
 
-/*
+void Interpreter::remove_entity(mu::Entity* entity) {
+    auto iter = entities.find(mu::EntityPtr(entity));
+    if(iter == entities.end()) {
+        for(auto& e : entities) {
+            if(e.get() == entity) {
+                entities.erase(e);
+            }
+        }
+    }
+    else {
+        entities.erase(iter);
+    }
+}
+
 bool Interpreter::equivalent_types(mu::types::Type *t1, mu::types::Type *t2) {
+
+    if(t1 == t2)
+        return true;
+
     // only valid for concrete types.
     if(t1->is_polymophic() || t2->is_polymophic())
         return false;
@@ -197,6 +227,10 @@ bool Interpreter::equivalent_types(mu::types::Type *t1, mu::types::Type *t2) {
     // if they are note the base type then early return.
     if(t1->kind() != t2->kind())
         return false;
+
+    // this must be integers and floats
+    if(t1->is_primative() and t2->is_primative())
+        return true;
 
     using namespace mu::types;
 
@@ -213,22 +247,96 @@ bool Interpreter::equivalent_types(mu::types::Type *t1, mu::types::Type *t2) {
         case mu::types::TraitAttributeType:
             return equivalent_trait(CAST_PTR(mu::types::TraitType, t1),
                     CAST_PTR(mu::types::TraitType, t2));
+        case mu::types::ModType:
+            // this should be check path
+        case mu::types::PolyFunctionType:
+        case mu::types::PolyStructureType:
+        case mu::types::PolySType:
+        case mu::types::PolyTraitAttributeType:
+        case mu::types::PolyType:
+        default:
+            return false;
     }
 }
 
+// duplicate code... @TODO: refactor.
 bool Interpreter::equivalent_structures(mu::types::StructType *st1, mu::types::StructType *st2) {
-    return false;
+
+    auto st1_name = st1->get_name();
+    auto st2_name = st2->get_name();
+
+    // these types are declared somewhere. if they have the same name we need to check
+    // if they have the same path as well.
+    if(st1_name->val != st2_name->val)
+        return false;
+
+    const auto st1_entity = st1->get_entity();
+    const auto st2_entity = st2->get_entity();
+
+    auto st1_path = st1_entity->path().path();
+    auto st2_path = st2_entity->path().path();
+
+    if(st1_path.size() != st1_path.size())
+        return false;
+
+    // checks the names of the path.
+    // It is assumed that if the names are equal
+    // and all previous names are equal then the names
+    // must be referring to the same entity
+    for(u32 i = 0; i < st1_path.size(); ++i) {
+        if(st1_path[i] != st2_path[i])
+            return false;
+    }
+
+    return true;
 }
 
 bool Interpreter::equivalent_sumtype(mu::types::SumType *st1, mu::types::SumType *st2) {
+    auto st1_entity = st1->get_entity();
+    auto st2_entity = st2->get_entity();
     return false;
 }
 
 bool Interpreter::equivalent_trait(mu::types::TraitType *t1, mu::types::TraitType *t2) {
-    return false;
+    auto t1_name = t1->get_name();
+    auto t2_name = t2->get_name();
+
+    // these types are declared somewhere. if they have the same name we need to check
+    // if they have the same path as well.
+    if(t1_name->val != t2_name->val)
+        return false;
+
+    const auto t1_entity = t1->get_entity();
+    const auto t2_entity = t2->get_entity();
+
+    auto t1_path = t1_entity->path().path();
+    auto t2_path = t2_entity->path().path();
+
+    if(t1_path.size() != t1_path.size())
+        return false;
+
+    // checks the names of the path.
+    // It is assumed that if the names are equal
+    // and all previous names are equal then the names
+    // must be referring to the same entity
+    for(u32 i = 0; i < t1_path.size(); ++i) {
+        if(t1_path[i] != t2_path[i])
+            return false;
+    }
+
+    return true;
 }
 
 bool Interpreter::equivalent_function(mu::types::FunctionType *f1, mu::types::FunctionType *f2) {
-    return false;
+
+    if(f1->num_params() != f2->num_params())
+        return false;
+
+    for (u64 i = 0; i < f1->num_params(); ++i) {
+        if(!equivalent_types(f1->get_param(i), f2->get_param(i)))
+            return false;
+    }
+
+    // to this point, all is the same. The only difference would be the return type.
+    return equivalent_types(f1->get_ret(), f2->get_ret());
 }
- */

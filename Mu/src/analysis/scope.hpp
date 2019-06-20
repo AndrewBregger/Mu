@@ -23,15 +23,18 @@ namespace mu {
 
     class Entity;
 
+    class Scope;
+    typedef std::shared_ptr<Scope> ScopePtr;
+
     class Scope {
     public:
-        Scope(ast::AstNode* r, ScopeKind k, Scope* parent);
+        Scope(ast::AstNode* r, ScopeKind k, ScopePtr parent);
 
         std::pair<Entity*, bool> find(ast::Ident* name);
 
         bool insert(ast::Ident* name, Entity* entity);
 
-        void add_child(Scope* scope);
+        void add_child(ScopePtr scope);
 
         inline ScopeKind kind() { return k; }
 
@@ -42,11 +45,23 @@ namespace mu {
 
         virtual ast::Ident* get_name() { return nullptr; }
 
-        inline Scope* get_parent() { return parent; }
+        inline ScopePtr get_parent() { return parent; }
+
+        void replace_name(ast::Ident* name, Entity* entity);
+
+        template <typename Ty>
+        const Ty* as() const {
+            return dynamic_cast<const Ty*>(this);
+        }
+
+        template <typename Ty>
+        Ty* as() {
+            return const_cast<Ty*>(const_cast<const Scope&>(*this).as<Ty>());
+        }
 
     private:
-        Scope* parent;
-        std::unordered_set<Scope*> children;
+        ScopePtr parent;
+        std::unordered_set<ScopePtr> children;
 
         std::unordered_map<Atom*, Entity*> elements;
         ast::AstNode* r;
@@ -55,12 +70,12 @@ namespace mu {
 
     class BlockScope : public Scope {
     public:
-        BlockScope(ast::AstNode* r,  Scope* parent);
+        BlockScope(ast::AstNode* r,  ScopePtr parent);
     };
 
     class ConstBlockScope : public Scope {
     public:
-        ConstBlockScope(ast::Ident* name, ast::AstNode* r,  Scope* parent);
+        ConstBlockScope(ast::Ident* name, ast::AstNode* r,  ScopePtr parent);
          ast::Ident* get_name() override { return name; }
     private:
         ast::Ident* name{nullptr};
@@ -68,12 +83,12 @@ namespace mu {
 
     class ParameterScope : public Scope {
     public:
-        ParameterScope(ast::AstNode* r, Scope* parent);
+        ParameterScope(ast::AstNode* r, ScopePtr parent);
     };
 
     class MemberScope : public Scope {
     public:
-        MemberScope(ast::Ident* name, ast::AstNode* r, Scope* parent);
+        MemberScope(ast::Ident* name, ast::AstNode* r, ScopePtr parent);
          ast::Ident* get_name() override { return name; }
     private:
         ast::Ident* name{nullptr};
@@ -81,7 +96,7 @@ namespace mu {
 
     class ModuleScope : public Scope {
     public:
-        ModuleScope(ast::Ident* name, ast::AstNode* r, Scope* parent);
+        ModuleScope(ast::Ident* name, ast::AstNode* r, ScopePtr parent);
         ast::Ident* get_name() override { return name; }
 
     private:
@@ -90,10 +105,9 @@ namespace mu {
 
     class DeferScope : public Scope {
     public:
-        DeferScope(ast::AstNode* r, Scope* parent);
+        DeferScope(ast::AstNode* r, ScopePtr parent);
     };
 
-    typedef mem::Pr<Scope> ScopePtr;
 
     template <typename Ty, typename... Args>
     ScopePtr make_scope(Args... args) {

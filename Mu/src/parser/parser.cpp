@@ -725,8 +725,14 @@ ast::DeclPtr mu::Parser::parse_struct(ast::Ident *name, ast::Visibility vis) {
     auto pos = name->pos;
     std::vector<ast::SpecPtr> bounds;
 
-    auto generics = parse_generic_group();
-    pos.extend(generics->pos());
+    ast::DeclPtr generics;
+
+    if(check(mu::Tkn_OpenBrace)) {
+        generics = parse_generic_group();
+        // this could fail
+        if(generics)
+            pos.extend(generics->pos());
+    }
 
     if(allow(mu::Tkn_Less)) {
         bool error = false;
@@ -880,18 +886,25 @@ ast::DeclPtr mu::Parser::parse_member_variable() {
     }
 
     if(allow(mu::Tkn_Equal)) {
-        init = many<ast::ExprPtr>(
-                [this]() {
-                    return parse_expr();
-                },
-                [this]() {
-                    return check(mu::Tkn_Comma);
-                },
-                [&pos](std::vector<ast::ExprPtr>& results, ast::ExprPtr res) {
-                    Parser::append(results, res);
-                    pos.extend(res->pos());
-                }
-        );
+        auto expr = parse_expr();
+        if(expr->kind == ast::ast_assign) {
+            report(expr->pos(), "cannot use an assignment as default initialization");
+            return nullptr;
+        }
+        init.push_back(expr);
+        // init = many<ast::ExprPtr>(
+        //         [this]() {
+        //             return parse_expr();
+        //         },
+        //         [this]() {
+        //             return check(mu::Tkn_Comma);
+        //         },
+        //         [&pos](std::vector<ast::ExprPtr>& results, ast::ExprPtr res) {
+        //             Parser::append(results, res);
+        //             if(res)
+        //                 pos.extend(res->pos());
+        //         }
+        // );
 
     }
     return ast::make_decl<ast::MemberVariable>(names, type, init, vis, pos);

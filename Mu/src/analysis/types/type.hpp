@@ -45,7 +45,7 @@ namespace mu {
             TraitAttributeType,
 
             // polymorphic variations
-                    PolyStructureType,
+            PolyStructureType,
             PolySType,
             PolyFunctionType,
             PolyTraitAttributeType,
@@ -158,6 +158,18 @@ namespace mu {
 
             virtual Type *base_type() = 0;
 
+            template <typename Ty>
+            const Ty* as() const {
+                return dynamic_cast<const Ty*>(this);
+            }
+
+            template <typename Ty>
+            Ty* as() {
+                return const_cast<Ty*>(const_cast<const Type&>(*this).template as<Ty>());
+            }
+
+
+
         private:
             TypeKind k;
             u64 sz;
@@ -175,7 +187,7 @@ namespace mu {
             TypeBounds(PolymorphicType *bounded, const std::vector<TraitType *> &bounds);
         };
 
-        typedef mem::Pr<Type> TypePtr;
+        typedef std::shared_ptr<Type> TypePtr;
 
         class PrimitiveInt : public Type {
         public:
@@ -367,9 +379,14 @@ namespace mu {
 
             bool is_struct() override;
 
-            inline MemberScope* get_scope() { return member_scope; }
+            inline ScopePtr get_scope() { return member_scope_ptr; }
+            inline Entity* get_entity() { return declaration; }
+            inline ast::Ident* get_name() { return name; }
+
+            Type* base_type() override;
 
             std::string str() override;
+
 
         private:
             ast::Ident *name;
@@ -394,7 +411,10 @@ namespace mu {
 
             std::string str() override;
 
-            inline MemberScope* get_scope() { return member_scope; }
+            inline ScopePtr get_scope() { return member_scope_ptr; }
+            inline Entity* get_entity() { return declaration; }
+            inline ast::Ident* get_name() { return name; }
+
 
         private:
             ast::Ident *name;
@@ -417,6 +437,11 @@ namespace mu {
             std::string str() override;
 
             Type* base_type() override { return this; }
+
+            u64 num_params();
+            Type* get_ret();
+
+            Type* get_param(u64 i);
 
         private:
             std::vector<Type *> params;
@@ -448,7 +473,10 @@ namespace mu {
 
             std::string str() override;
 
-            inline MemberScope* get_scope() { return member_scope; }
+            inline ScopePtr get_scope() { return member_scope_ptr; }
+            inline Entity* get_entity() { return declaration; }
+            inline ast::Ident* get_name() { return name; }
+
 
         private:
             ast::Ident *name;

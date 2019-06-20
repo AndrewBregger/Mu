@@ -20,6 +20,7 @@ namespace ast {
         ExprPtr init;
 
         Local(PatternPtr &names, SpecPtr &type, ExprPtr &init, const mu::Pos& pos);
+        virtual ~Local() = default;
     };
 
     struct Mutable : public Decl {
@@ -28,6 +29,7 @@ namespace ast {
         ExprPtr init;
 
         Mutable(PatternPtr &names, SpecPtr &type, ExprPtr &init, mu::Pos& pos);
+        virtual ~Mutable() = default;
     };
 
     struct Global : public Decl {
@@ -37,6 +39,7 @@ namespace ast {
         Visibility vis;
 
         Global(Ident *name, SpecPtr &type, ExprPtr &init, ast::Visibility vis, const mu::Pos& pos);
+        virtual ~Global() = default;
     };
 
     struct GlobalMut : public Decl{
@@ -46,6 +49,7 @@ namespace ast {
         Visibility vis;
 
         GlobalMut(Ident *name, SpecPtr &type, ExprPtr &init, Visibility vis, const mu::Pos& pos);
+        virtual ~GlobalMut() = default;
     };
 
     struct Attribute {
@@ -84,6 +88,8 @@ namespace ast {
 
         Procedure(Ident* name, std::shared_ptr<ProcedureSigniture>& signiture, ExprPtr& body, AttributeList& attributeList, const std::vector<Modifier>& modifiers,
                 Visibility vis, const mu::Pos& pos);
+        
+        virtual ~Procedure() = default;
     };
 
     struct ProcedureParameter : public Decl {
@@ -92,10 +98,14 @@ namespace ast {
         ExprPtr init;
 
         ProcedureParameter(PatternPtr& pattern, SpecPtr& type, ExprPtr& init, const mu::Pos& pos);
+
+        virtual ~ProcedureParameter() = default;
     };
 
     struct SelfParameter : public Decl {
         SelfParameter(const mu::Pos& pos);
+
+        virtual ~SelfParameter() = default;
     };
 
     struct Structure : public Decl {
@@ -107,6 +117,8 @@ namespace ast {
 
         Structure(Ident *name, std::vector<SpecPtr> &bounds, std::vector<DeclPtr> &members, DeclPtr &generics,
                   Visibility vis, const mu::Pos &pos);
+            
+        virtual ~Structure() = default;
     };
 
     struct Type : public Decl {
@@ -118,6 +130,8 @@ namespace ast {
 
         Type(Ident *name, std::vector<SpecPtr> &bounds, std::vector<DeclPtr> &members, DeclPtr &generics,
             Visibility vis, const mu::Pos &pos);
+        
+        virtual ~Type() = default;
     };
 
     struct TypeClass : public Decl {
@@ -127,6 +141,8 @@ namespace ast {
         Visibility vis;
 
         TypeClass(Ident* name, std::vector<DeclPtr>& members, DeclPtr& generics, Visibility vis, const mu::Pos& pos);
+
+        virtual ~TypeClass() = default;
     };
 
     struct UsePath : public Decl {
@@ -134,6 +150,8 @@ namespace ast {
         bool all_names{false};
 
         UsePath(const SPath& path, bool all_names, const mu::Pos& pos);
+
+        virtual ~UsePath() = default;
     };
 
     struct UsePathList : public Decl {
@@ -141,6 +159,8 @@ namespace ast {
         std::vector<DeclPtr> subpaths;
 
         UsePathList(const SPath& path, std::vector<DeclPtr>& subpaths, const mu::Pos& pos);
+
+        virtual ~UsePathList() = default;
     };
 
     struct UsePathAlias : public Decl {
@@ -148,6 +168,8 @@ namespace ast {
         ast::Ident* alias;
 
         UsePathAlias(const SPath& path, Ident* alias, const mu::Pos& pos);
+
+        virtual ~UsePathAlias() = default;
     };
 
     struct Use : public Decl {
@@ -155,6 +177,8 @@ namespace ast {
         Visibility vis;
 
         Use(DeclPtr& use_path, Visibility vis, const mu::Pos& pos);
+
+        virtual ~Use() = default;
     };
 
     struct Alias : public Decl {
@@ -163,6 +187,8 @@ namespace ast {
         Visibility vis;
 
         Alias(Ident* name, SpecPtr& type, Visibility vis, const mu::Pos& pos);
+
+        virtual ~Alias() = default;
     };
 
 
@@ -170,6 +196,8 @@ namespace ast {
         Ident* name;
 
         Generic(Ident* name, const mu::Pos& pos);
+
+        virtual ~Generic() = default;
     };
 
     struct BoundedGeneric;
@@ -185,12 +213,16 @@ namespace ast {
         GenericBounds bounds;
 
         BoundedGeneric(Ident* name, GenericBounds& bounds, const mu::Pos& pos);
+
+        virtual ~BoundedGeneric() = default;
     };
 
     struct GenericGroup : public Decl {
         std::vector<DeclPtr> generics;
 
         GenericGroup(std::vector<DeclPtr>& generics, const mu::Pos& pos);
+
+        virtual ~GenericGroup() = default;
     };
 
     struct MemberVariable : public Decl {
@@ -201,6 +233,8 @@ namespace ast {
 
         MemberVariable(std::vector<Ident *> &names, SpecPtr &type,
                        std::vector<ExprPtr> &init, Visibility vis, const mu::Pos& pos);
+        
+        virtual ~MemberVariable() = default;
     };
 
     struct Impl : public Decl {
@@ -208,6 +242,8 @@ namespace ast {
         DeclPtr generics;
         std::vector<DeclPtr> methods;
         Impl(Ident* name, std::vector<DeclPtr>& methods, DeclPtr& generics, const mu::Pos& pos);
+
+        virtual ~Impl() = default;
     };
 
     struct TypeMember : public Decl {
@@ -215,6 +251,8 @@ namespace ast {
         std::vector<SpecPtr> types;
 
         TypeMember(Ident* name, std::vector<SpecPtr>& types, const mu::Pos& pos);
+
+        virtual ~TypeMember() = default;
     };
 
     struct TraitElementType : public Decl {
@@ -222,6 +260,8 @@ namespace ast {
         SpecPtr init; // default type if one is not provided
 
         TraitElementType(Ident* name, SpecPtr& init, const mu::Pos& pos);
+
+        virtual ~TraitElementType() = default;
     };
 }
 

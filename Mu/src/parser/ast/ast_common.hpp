@@ -199,18 +199,11 @@ namespace ast {
         T* as() {
             return (T*) const_cast<const AstNode&>(*this).as<T>();
         }
-
-
-
-//       virtual std::ostream& operator<< (std::ostream& out) {
-//           out << node_names[kind] << "|";
-//           out << position;
-//           return out;
-//       }
     };
 
     struct Decl : public AstNode {
         Decl(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
+        virtual ~Decl() = default;
     };
 
     struct Expr : public AstNode {
@@ -240,40 +233,40 @@ namespace ast {
         Pattern(AstKind kind, const mu::Pos& pos) : AstNode(kind, pos) {}
     };
 
-    typedef mem::Pr<Expr> ExprPtr;
-    typedef mem::Pr<Decl> DeclPtr;
-    typedef mem::Pr<Stmt> StmtPtr;
-    typedef mem::Pr<Pattern> PatternPtr;
-    typedef mem::Pr<Spec> SpecPtr;
+    typedef std::shared_ptr<Expr> ExprPtr;
+    typedef std::shared_ptr<Decl> DeclPtr;
+    typedef std::shared_ptr<Stmt> StmtPtr;
+    typedef std::shared_ptr<Pattern> PatternPtr;
+    typedef std::shared_ptr<Spec> SpecPtr;
 
     template <typename Type, typename... Args>
     ExprPtr make_expr(Args... args) {
 //        static_assert(std::is_base_of<Type, Expr>::value, "Type must be a base type of Expr");
-        return ExprPtr(new Type(args...));
+        return std::make_shared<Type>(args...);
     }
 
     template <typename Type, typename... Args>
     StmtPtr make_stmt(Args... args) {
 //        static_assert(std::is_base_of<Type, Stmt>::value, "Type must be a base type of Stmt");
-        return StmtPtr(new Type(args...));
+        return std::make_shared<Type>(args...);
     }
 
     template <typename Type, typename... Args>
     SpecPtr make_spec(Args... args) {
 //        static_assert(std::is_base_of<Type, Spec>::value, "Type must be a base type of Spec");
-        return SpecPtr(new Type(args...));
+        return std::make_shared<Type>(args...);
     }
 
     template <typename Type, typename... Args>
     DeclPtr make_decl(Args... args) {
 //        static_assert(std::is_base_of<Type, Decl>::value, "Type must be a base type of Decl");
-        return DeclPtr(new Type(args...));
+        return std::make_shared<Type>(args...);
     }
 
     template <typename Type, typename... Args>
     PatternPtr make_pattern(Args... args) {
 //        static_assert(std::is_base_of<Type, Decl>::value, "Type must be a base type of Decl");
-        return PatternPtr(new Type(args...));
+        return std::make_shared<Type>(args...);
     }
 
     typedef std::vector<Ident*> SPath;

@@ -193,7 +193,7 @@ const io::Path &io::IO::path() {
 }
 
 std::string io::IO::name() {
-    return n.string();
+    return p.filename(false).string();
 }
 
 // stupid way of doing this.

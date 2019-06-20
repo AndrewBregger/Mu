@@ -56,9 +56,25 @@ namespace mu {
         errors_num++;
     }
 
+    ScopePtr Typer::active_scope() {
+        return context.current_scope;
+    }
+
+    AddressType Typer::get_addressing_by_type(types::Type* type) {
+        if(type->is_array() || type->is_ptr() || type->is_ref() || type->is_function()) 
+            return AddressType::Reference;
+        else
+            return AddressType::Value;
+    }
+
+    bool Typer::is_redeclaration(ast::Ident* name) {
+        auto entity = search_scope(active_scope(), name);
+        return entity != nullptr;
+    }
+
 
     Entity* Typer::search_active_scope(ast::Ident* name) {
-        auto e = search_scope(current_scope, name);
+        auto e = search_scope(active_scope(), name);
         if(e) {
             return e;
         }
@@ -72,7 +88,7 @@ namespace mu {
         }
     }
 
-    Entity* Typer::search_scope(Scope* scope, ast::Ident* name) {
+    Entity* Typer::search_scope(ScopePtr  scope, ast::Ident* name) {
         auto curr = scope;
 
         while(curr) {
@@ -90,17 +106,23 @@ namespace mu {
         // this will become the executable name.
         auto name = main_module->get_name();
 
-        auto module_scope = make_scope<ModuleScope>(name, main_module, current_scope);
+        auto module_scope = make_scope<ModuleScope>(name, main_module, active_scope());
 
-        push_scope(module_scope.get());
+        push_scope(module_scope);
 
 
         std::vector<Entity*> entities;
-        for(auto& decl : *main_module)
-            entities.emplace_back(build_top_level_entity(decl.get()));
+        for(auto& decl : *main_module) {
+            auto entity = build_top_level_entity(decl);
+            add_entity(entity);
+            entities.emplace_back(entity);
+        }
 
-        for(auto entity : entities)
-            resolve_entity(entity);
+        for(auto entity : entities) {
+            auto e = resolve_entity(entity);
+    
+            if(e) e->debug_print(interp->out_stream());
+        }
 
         pop_scope();
 
@@ -110,45 +132,46 @@ namespace mu {
     }
 
     void Typer::add_entity(Entity *entity) {
-        current_scope->insert(entity->get_name(), entity);
+        active_scope()->insert(entity->get_name(), entity);
     }
 
-    void Typer::push_scope(Scope *scope) {
-        if(current_scope) current_scope->add_child(scope);
-        if(scope->get_parent() != current_scope)
+    void Typer::push_scope(ScopePtr scope) {
+        if(active_scope()) active_scope()->add_child(scope);
+        if(scope->get_parent() != active_scope())
             interp->fatal("Compiler Error: Pushing a scope where the parent isn't the active scope");
-        current_scope = scope;
+
+        context.current_scope = scope;
     }
 
     void Typer::pop_scope() {
-        current_scope = current_scope->get_parent();
+        context.current_scope = active_scope()->get_parent(); 
     }
 
-    Entity *Typer::build_top_level_entity(ast::Decl *decl) {
+    Entity *Typer::build_top_level_entity(ast::DeclPtr decl) {
         switch(decl->kind) {
             case ast::ast_global: {
                 auto g = decl->as<ast::Global>();
-                return interp->new_entity<Global>(g->name, current_scope, decl);
+                return interp->new_entity<Global>(g->name, active_scope(), decl);
             }
             case ast::ast_global_mut: {
                 auto g = decl->as<ast::GlobalMut>();
-               return interp->new_entity<Global>(g->name, current_scope, decl);
+               return interp->new_entity<Global>(g->name, active_scope(), decl);
             } break;
             case ast::ast_procedure: {
                 auto p = decl->as<ast::Procedure>();
-                return interp->new_entity<Function>(p->name, current_scope, decl);
+                return interp->new_entity<Function>(p->name, active_scope(), decl);
             } break;
             case ast::ast_structure: {
                 auto s = decl->as<ast::Structure>();
-                return interp->new_entity<Type>(s->name, current_scope, decl);
+                return interp->new_entity<Type>(s->name, active_scope(), decl);
             } break;
             case ast::ast_type: {
                 auto s = decl->as<ast::Type>();
-                return interp->new_entity<Type>(s->name, current_scope, decl);
+                return interp->new_entity<Type>(s->name, active_scope(), decl);
             } break;
             case ast::ast_type_class: {
                 auto s = decl->as<ast::TypeClass>();
-                return interp->new_entity<Type>(s->name, current_scope, decl);
+                return interp->new_entity<Type>(s->name, active_scope(), decl);
             } break;
             case ast::ast_use: {
                 auto s = decl->as<ast::Use>();
@@ -161,11 +184,11 @@ namespace mu {
                         report_str(s->use_path->pos(), "Compiler Error: parser bug in use declaration");
                 }
                 interp->fatal("Use are not implemented at this moment");
-                return interp->new_entity<Module>(name, current_scope, decl);
+                return interp->new_entity<Module>(name, active_scope(), decl);
             } break;
             case ast::ast_alias: {
                 auto a = decl->as<ast::Alias>();
-                return interp->new_entity<Alias>(a->name, nullptr, current_scope, decl);
+                return interp->new_entity<Alias>(a->name, (types::Type*) nullptr, active_scope(), decl);
             } break;
             case ast::ast_impl:  {
                 // think about how this should be handled.
@@ -174,12 +197,19 @@ namespace mu {
             } break;
             default:
                 report_str(decl->pos(), "invalid global declaration");
+                return nullptr;
         }
     }
 
     Entity *Typer::resolve_entity(Entity *entity) {
-        if(entity->is_resolved())
+        interp->message("Resolving: %s", entity->str().c_str());
+
+        entity->update_status(Resolving);
+
+        if(entity->is_resolved()) {
+            interp->message("\tAlready Resolved: Returning");
             return entity;
+        }
 
         // If an entity is resolved while it is
         // actively being resolved.
@@ -190,9 +220,7 @@ namespace mu {
             return nullptr;
         }
 
-        entity->resolve(this);
-
-        return entity;
+        return entity->resolve(this);
     }
 
     Entity *Typer::resolve(Global *global) {
@@ -221,6 +249,7 @@ namespace mu {
 
             if(!init) {
                 report(name->pos, "constant global '%s' must be initialized", name->value().c_str());
+                return nullptr;
             }
         }
 
@@ -232,12 +261,48 @@ namespace mu {
 
         if(init)
             expr_type = resolve_expr(init, resolved_type);
+        
+        if(expr_type.error) {
+            return nullptr;
+        }
 
-        if(expr_type.val.is_constant) {
+        if(resolved_type and expr_type.type) {
+            interp->message("Global Types: Annotation: %s, Expression: %s",
+                            resolved_type->str().c_str(),
+                            expr_type.type->str().c_str());
+        }
+
+        if(!resolved_type)
+            resolved_type = expr_type.type;
+
+        if(!resolved_type)
+            return nullptr;
+
+
+        interp->message("Global resoved type: %s", resolved_type->str().c_str());
+
+        // if the value is mutable the valarable should be converted to
+        // a constant
+        if(expr_type.val.is_constant and !global->is_mutable()) {
+            interp->message("Global is a constant, is tranformed into a constant entity");
             // convert this entity to a constant.
+            // interp->remove_entity(global);
+
+            auto constant = interp->new_entity<Constant>(name, resolved_type, expr_type.val,
+                                                         active_scope(), global->decl_ptr());
+
+            constant->resolve_to(resolved_type);
+            
+            active_scope()->replace_name(constant->get_name(), constant);
+            return constant;
         }
         else {
-            // global->
+            if(init) {
+                global->set_initialized();
+            }
+
+            global->set_addressing(get_addressing_by_type(resolved_type));
+            global->resolve_to(resolved_type);
             return global;
         }
     }
@@ -247,7 +312,18 @@ namespace mu {
     }
 
     Entity *Typer::resolve(Type *type) {
-        return type;
+        interp->message("Resolving %s", type->str().c_str());
+
+        switch(type->get_decl()->kind) {
+            case ast::ast_structure:
+                return resolve_struct(type, type->get_decl());
+            case ast::ast_type:
+                return resolve_sumtype(type, type->get_decl());
+            case ast::ast_type_class:
+                return resolve_trait(type, type->get_decl());
+            default:
+                return nullptr;
+        }
     }
 
     Entity *Typer::resolve(Function *funct) {
@@ -262,10 +338,207 @@ namespace mu {
         return constant;
     }
 
+    Entity* Typer::resolve_struct(Type* entity, ast::DeclPtr decl_ptr) {
+        auto decl = decl_ptr->as<ast::Structure>();
+        // I will duplicate code to reduce complexity.
+        if(decl->generics)
+            return resolve_poly_struct(entity, decl_ptr);
+
+        // creates the member scope for the struct.
+        auto member_scope = mu::make_scope<mu::MemberScope>(entity->get_name(), decl, active_scope());        
+
+        push_scope(member_scope);
+
+        std::unordered_map<ast::Ident*, Entity*> members;
+
+        u64 sz = 0;
+        for(auto local : decl->members) {
+            switch(local->kind) {
+                case ast::ast_member_variable: {
+                    auto entities = resolve_member_variable(local);
+                    // there was an error resolving the members
+                    if(entities.empty())
+                        return nullptr;
+
+                    for(auto e : entities) {
+                        sz += e->get_type()->size();
+                        members.emplace(e->get_name(), e);
+                    }
+
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        auto type = interp->checked_new_type<types::StructType>(entity->get_name(),
+            members, member_scope, sz, entity);
+
+
+        interp->message("Structure Resolution");
+        for(auto& [name, entity] : members) {
+            interp->message("%s -> %s", name->value().c_str(), entity->get_type()->str().c_str());
+        }
+
+        entity->resolve_to(type);
+
+        pop_scope();
+
+
+        return entity;
+    }
+
+    Entity* Typer::resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr) {
+        return entity;
+    }
+
+    types::FunctionType* Typer::resolve_function_signiture(ast::ProcedureSigniture* sig) {
+        return nullptr;
+    }
+
+    Entity* Typer::resolve_function(Type* entity, ast::DeclPtr decl_ptr) {
+        return entity;
+    }
+
+    Entity* Typer::resolve_poly_function(Type* entity, ast::DeclPtr decl_ptr) {
+
+        return entity;
+    }
+
+    Entity* Typer::resolve_sumtype(Type* entity, ast::DeclPtr decl_ptr) {
+
+        return entity;
+    }
+
+    Entity* Typer::resolve_poly_sumtype(Type* entity, ast::DeclPtr decl_ptr) {
+
+        return entity;
+    }
+
+    Entity* Typer::resolve_trait(Type* entity, ast::DeclPtr decl_ptr) {
+        return entity;
+    }
+
+    Entity* Typer::resolve_poly_trait(Type* entity, ast::DeclPtr decl_ptr) {
+        return entity;
+    }
+
+    std::vector<Local*> Typer::resolve_member_variable(ast::DeclPtr decl_ptr) {
+        auto member = decl_ptr->as<ast::MemberVariable>();
+        interp->message("Resolving Memeber");
+
+        std::vector<Local*> entities;
+
+        u32 num_names = member->names.size();
+        u32 num_exprs = member->init.size();
+
+        types::Type* type{nullptr};
+
+        if(member->type)
+            type = resolve_spec(member->type.get());
+
+
+        if(num_names == num_exprs) {
+            std::vector<Operand> init_types;
+
+            // resolve the type of the expression
+            for(auto& i : member->init) {
+                auto op = resolve_expr(i.get(), type);
+
+                if(op.error)
+                    return entities;
+
+                init_types.push_back(op);
+            }
+
+            // build the entity
+            for(u32 i = 0; i < num_exprs; ++i) {
+                auto e = interp->new_entity<Local>(member->names[i], init_types[i].type,
+                        get_addressing_by_type(init_types[i].type),
+                        active_scope(),
+                        decl_ptr);
+                        
+                
+                if(member->vis == ast::Visibility::Public)
+                    e->set_visable();
+
+                e->set_initialized();
+                entities.push_back(e);
+            }
+
+
+        }
+        else if(num_exprs == 1) {
+            auto op = resolve_expr(member->init.front().get(), type);
+
+            for(u32 i = 0; i < num_names; ++i) {
+                auto e = interp->new_entity<Local>(member->names[i], op.type,
+                        get_addressing_by_type(op.type),
+                        active_scope(),
+                        decl_ptr);
+
+                if(member->vis == ast::Visibility::Public)
+                    e->set_visable();
+
+                e->set_initialized();
+                entities.push_back(e);
+            }
+        }
+        else if(num_exprs == 0) {
+            if(!type) {
+                report_str(member->pos(), "member variable must have type annotation or initialized");
+                return {};
+            }
+
+            for(u32 i = 0; i < num_names; ++i) {
+                auto e = interp->new_entity<Local>(member->names[i], type,
+                        get_addressing_by_type(type),
+                        active_scope(),
+                        decl_ptr);
+                        
+
+                if(member->vis == ast::Visibility::Public)
+                    e->set_visable();
+
+                entities.push_back(e);
+            }
+        }
+        else {
+            report(member->pos(), "unexected number of initialization expression, expecting '%u' or '1' "
+                                "found %u", num_names, num_exprs);
+        }
+
+        for(auto e : entities) { 
+            if(is_redeclaration(e->get_name())) {
+                // check for redeclaration
+                report(e->get_name()->pos, "redeclaration of member variable '%s'",  e->get_name()->value().c_str());
+
+                auto entity = search_scope(active_scope(), e->get_name());
+
+                interp->message("'%s' previously declared here:", e->get_name()->value().c_str());
+                interp->print_file_section(entity->get_name()->pos);
+
+                return {};
+            }
+            else {
+                // add it otherwise
+                add_entity(e);
+            }
+        }
+
+        return entities;
+    }
+
+    Entity* Typer::resolve_local_from_decl(ast::DeclPtr decl_ptr) {
+        
+    }
+
     Operand Typer::resolve_expr(ast::Expr *expr, types::Type *expected_type) {
         Operand result(expr);
         switch(expr->kind) {
             case ast::ast_name:
+            case ast::ast_name_generic:
                 result = resolve_name(expr);
                 break;
             case ast::ast_integer:
@@ -281,12 +554,37 @@ namespace mu {
             case ast::ast_unary:
                 result = resolve_unary(expr->as<ast::Unary>(), nullptr);
                 break;
+            case ast::ast_tuple_expr: {
+                auto t = expr->as<ast::TupleExpr>();
+                u64 sz = 0;
+                std::vector<types::Type*> types;
+                for(auto& element : t->elements) {
+                    auto op = resolve_expr(element.get());
+                    if(op.error)
+                        return Operand(expr);
+
+                    types.push_back(op.type);
+                    sz += op.type->size();
+                }
+                auto res_type = interp->checked_new_type<types::Tuple>(types, sz);
+
+                // Rvalue because this is a tuple literal.
+                result = Operand(res_type, expr, RValue);
+                break;
+
+            }
             default:
                 break;
         }
 
         if(expected_type) {
             // check for compatibility of the resulting type and the expected type.
+            // if(!compatable_types(expected_type, result.type)) {
+            //     report(expr->pos(), "incompatable type: '%s' expected: '%s'",
+            //         result.type->str().c_str(),
+            //         expected_type->str().c_str());
+            //     return Operand(expr);
+            // }
         }
         expr->type = result.type;
         return result;
@@ -406,7 +704,7 @@ namespace mu {
                     return Operand(type_bool, expr, RValue);
                 } break;
                 case mu::Tkn_Ampersand: {
-                    auto type = interp->new_type<types::Pointer>(operand.type);
+                    auto type = interp->checked_new_type<types::Pointer>(operand.type);
                     // I think
                     return Operand(type, expr, LValue);
                 } break;
@@ -512,11 +810,45 @@ namespace mu {
     }
 
     Operand Typer::resolve_name(ast::Expr *expr) {
-        return Operand(nullptr, nullptr, LValue);
+        switch(expr->kind) {
+            case ast::ast_name:
+                return resolve_name_expr(expr->as<ast::Name>());
+            case ast::ast_name_generic:
+                return resolve_name_generic_expr(expr->as<ast::NameGeneric>());
+            default:
+                interp->fatal("Invalid name expression");
+                return Operand(expr);
+        }
     }
 
     Operand Typer::resolve_name_expr(ast::Name *expr) {
-        return Operand(nullptr, nullptr, LValue);
+        auto entity = search_active_scope(expr->name);
+
+        if(!entity)
+            return Operand(expr);
+
+        if(entity->is_local()) {
+            auto local = entity->as<Local>();
+            if(!local->is_initialized()) {
+                report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
+                interp->message("'%s' is declared here:", expr->name->value().c_str());
+                interp->print_file_section(local->get_decl()->pos());
+            }
+            return Operand(local->get_type(), expr, LValue);
+            // local->get_type();
+        }
+        else if(entity->is_global()) {
+            auto global = entity->as<Global>(); 
+            // resolve the entity anyway.
+            global->resolve(this);
+            if(!global->is_initialized()) {
+                report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
+                interp->message("'%s' is declared here:", expr->name->value().c_str());
+                // interp->out_stream() << "\t";
+                interp->print_file_section(global->get_decl()->pos());
+            }
+            return Operand(global->get_type(), expr, LValue);
+        }
     }
 
     Operand Typer::resolve_name_generic_expr(ast::NameGeneric *expr) {
@@ -553,25 +885,25 @@ namespace mu {
                     }
                     return nullptr;
                 }
-                return interp->new_type<types::Tuple>(types, sz);
+                return interp->checked_new_type<types::Tuple>(types, sz);
             }
             case ast::ast_list_spec:
             case ast::ast_list_spec_dyn:
                 break;
             case ast::ast_ptr: {
                 auto s = spec->as<ast::PtrSpec>();
-                auto base_type = resolve_spec(s);
-                return interp->new_type<types::Pointer>(base_type);
+                auto base_type = resolve_spec(s->type.get());
+                return interp->checked_new_type<types::Pointer>(base_type);
             }
             case ast::ast_ref: {
                 auto s = spec->as<ast::RefSpec>();
-                auto base_type = resolve_spec(s);
-                return interp->new_type<types::Reference>(base_type);
+                auto base_type = resolve_spec(s->type.get());
+                return interp->checked_new_type<types::Reference>(base_type);
             }
             case ast::ast_mut: {
                 auto s = spec->as<ast::MutSpec>();
                 auto base_type = resolve_spec(s);
-                return interp->new_type<types::Mutable>(base_type);
+                return interp->checked_new_type<types::Mutable>(base_type);
             }
             case ast::ast_self_type: {
                 // check if we are resolving an
@@ -623,7 +955,7 @@ namespace mu {
         // if there was an error above then propogate it through the rest.
         if(!root_entity) return nullptr;
 
-        Scope* scope = nullptr;
+        ScopePtr  scope = nullptr;
         switch(root_entity->kind()) {
             case mu::ModuleEntity: {
                 auto mod = CAST_PTR(Module, root_entity);

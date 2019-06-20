@@ -86,18 +86,39 @@ public:
 
     static Interpreter* get() { return instance; }
 
+    // this creates the TypePtr
     template<typename Ty, typename... Args>
-    Ty* new_type(Args... args) {
+    mu::types::TypePtr new_type(Args... args) {
         static_assert(std::is_base_of<mu::types::Type, Ty>::value, "attempting to constructing non-scope object");
-        auto iter = types.emplace(new Ty(args...));
-        return iter.first->template as<Ty>();
+        return std::make_shared<Ty>(args...);
     }
+
+    // checks if the type already exists. Doesn't check compatability.
+    template<typename Ty, typename... Args>
+    Ty* checked_new_type(Args... args) {
+        static_assert(std::is_base_of<mu::types::Type, Ty>::value, "attempting to constructing non-scope object");
+
+        /// this type is not added to the set then it will be cleanup automatically.
+        auto type = new_type<Ty>(args...);
+
+        // I know this isn't the most efficent but it works for now.
+        for(auto& ty : types) {
+            if(equivalent_types(ty.get(), type.get())) {
+                return ty.get()->template as<Ty>();;
+            }
+        }
+
+        // an equivalent type is not found. Add it to the type set and return it casted.
+        auto iter = types.emplace(std::move(type));
+        return (*iter.first)->template as<Ty>();
+    }
+
 
     template<typename Ty, typename... Args>
     Ty* new_entity(Args... args) {
         static_assert(std::is_base_of<mu::Entity, Ty>::value, "attempting to constructing non-entity object");
-        auto iter = entities.emplace(new Ty(args...));
-        return iter.first->template as<Ty>();
+        auto iter = entities.emplace(std::move(std::make_unique<Ty>(args...)));
+        return (*iter.first)->template as<Ty>();
     }
 
     // checks whether two given types are structurally the same. This method only works
@@ -117,7 +138,9 @@ public:
 
     bool equivalent_function(mu::types::FunctionType* f1, mu::types::FunctionType* f2);
 
-    mu::Scope* get_prelude();
+    mu::ScopePtr get_prelude();
+
+    void remove_entity(mu::Entity* entity);
 
 private:
     Context context;

@@ -59,33 +59,33 @@ typedef u32 rune;
 #define or ||
 #endif
 
-namespace mem {
-    template <typename T>
-    class Pr : public std::shared_ptr<T> {
-    public:
-        Pr(T* type = nullptr) : std::shared_ptr<T>(type) {}
+// namespace mem {
+//     template <typename T>
+//     class Pr : public std::shared_ptr<T> {
+//     public:
+//         using std::shared_ptr<T>::shared_ptr;
 
-        template <typename Ty>
-        Ty* as() {
-            return const_cast<const Pr<T>&>(*this).as<Ty>();
-        }
+//         template <typename Ty>
+//         Ty* as() {
+//             return const_cast<const Pr<T>&>(*this).as<Ty>();
+//         }
 
-        template <typename Ty>
-        Ty* as() const {
-            return dynamic_cast<Ty*>(this->get());
-        }
-    };
-}
+//         template <typename Ty>
+//         Ty* as() const {
+//             return dynamic_cast<Ty*>(this->get());
+//         }
+//     };
+// }
 
-namespace std {
-    template<typename T>
-    struct hash<mem::Pr<T>> {
-        u64 operator() (const mem::Pr<T>& ptr) const {
-            std::hash<T*> hasher;
-            return hasher(ptr.get());
-        }
-    };
-}
+// namespace std {
+//     template<typename T>
+//     struct hash<mem::Pr<T>> {
+//         u64 operator() (const mem::Pr<T>& ptr) const {
+//             std::hash<T*> hasher;
+//             return hasher(ptr.get());
+//         }
+//     };
+// }
 
 struct Atom {
     std::string value;
