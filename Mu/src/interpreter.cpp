@@ -82,21 +82,21 @@ void Interpreter::setup() {
     prelude = mu::make_scope<mu::ModuleScope>(new ast::Ident(find_name("_prelude"), mu::Pos()), nullptr, nullptr);
 
     // use the platform to determine the size of these types.
-    type_u8  =  checked_new_type<PrimitiveInt>(Primitive_U8,  (u64) 1);
-    type_u16 =  checked_new_type<PrimitiveInt>(Primitive_U16, (u64) 2);
-    type_u32 =  checked_new_type<PrimitiveInt>(Primitive_U32, (u64) 4);
-    type_u64 =  checked_new_type<PrimitiveInt>(Primitive_U64, (u64) 8);
+    type_u8  =  checked_new_type<PrimitiveInt>(Primitive_U8,  (u64) 1, (u64) 1);
+    type_u16 =  checked_new_type<PrimitiveInt>(Primitive_U16, (u64) 2, (u64) 2);
+    type_u32 =  checked_new_type<PrimitiveInt>(Primitive_U32, (u64) 4, (u64) 4);
+    type_u64 =  checked_new_type<PrimitiveInt>(Primitive_U64, (u64) 8, (u64) 8);
 
-    type_i8  =  checked_new_type<PrimitiveInt>(Primitive_I8,  (u64) 1);
-    type_i16 =  checked_new_type<PrimitiveInt>(Primitive_I16, (u64) 2);
-    type_i32 =  checked_new_type<PrimitiveInt>(Primitive_I32, (u64) 4);
-    type_i64 =  checked_new_type<PrimitiveInt>(Primitive_I64, (u64) 8);
+    type_i8  =  checked_new_type<PrimitiveInt>(Primitive_I8,  (u64) 1, (u64) 1);
+    type_i16 =  checked_new_type<PrimitiveInt>(Primitive_I16, (u64) 2, (u64) 2);
+    type_i32 =  checked_new_type<PrimitiveInt>(Primitive_I32, (u64) 4, (u64) 4);
+    type_i64 =  checked_new_type<PrimitiveInt>(Primitive_I64, (u64) 8, (u64) 8);
 
-    type_f32 =  checked_new_type<PrimitiveFloat>(Primitive_Float32, (u64) 4);
-    type_f64 =  checked_new_type<PrimitiveFloat>(Primitive_Float64, (u64) 8);
+    type_f32 =  checked_new_type<PrimitiveFloat>(Primitive_Float32, (u64) 4, (u64) 4);
+    type_f64 =  checked_new_type<PrimitiveFloat>(Primitive_Float64, (u64) 8, (u64) 8);
 
-    type_char = checked_new_type<PrimitiveInt>(Primitive_Char, (u64) 1);
-    type_bool = checked_new_type<PrimitiveInt>(Primitive_Bool, (u64) 1);
+    type_char = checked_new_type<PrimitiveInt>(Primitive_Char, (u64) 1, (u64) 1);
+    type_bool = checked_new_type<PrimitiveInt>(Primitive_Bool, (u64) 1, (u64) 1);
 
     type_unit = checked_new_type<UnitType>();
 

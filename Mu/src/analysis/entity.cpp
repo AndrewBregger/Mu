@@ -190,7 +190,7 @@ namespace mu {
     }
 
     Local::Local(ast::Ident *name, types::Type *type, AddressType addr_type, ScopePtr p, ast::DeclPtr decl) :
-        Entity(name, p, LocalEntity, decl), addr_type(addr_type),  {
+        Entity(name, p, LocalEntity, decl), addr_type(addr_type) {
         if(decl->kind == ast::ast_mut)
             set_mutable();
         this->type = type;
@@ -227,7 +227,7 @@ namespace mu {
     }
 
     std::string Local::str() {
-        auto s = "local" + (mut ? std::string(" mut ") : std::string(" "));
+        auto s = "local" + (is_mutable() ? std::string(" mut ") : std::string(" "));
         return s + name->value();
     }
 

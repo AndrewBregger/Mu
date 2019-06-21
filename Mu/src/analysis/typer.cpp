@@ -5,7 +5,6 @@
 
 #include "typer.hpp"
 
-
 #include "typer_op_eval.hpp"
 
 
@@ -27,6 +26,11 @@
 
 
 #define pop_context_state(var) context.var = _old_##var;
+
+u64 next_multiple(u64 old, u64 multi_of) {
+    auto mod = old % multi_of;
+    return old + multi_of - (old % multi_of);
+}
 
 
 
@@ -110,6 +114,18 @@ namespace mu {
         }
 
         return nullptr;
+    }
+
+    Local* Typer::new_padding(const std::string& name, u32 size) {
+        auto padding_atom = interp->find_name(name);
+        auto padding_type = interp->checked_new_type<types::Array>(type_u8, size);
+        auto entity = interp->new_entity<mu::Local>(new ast::Ident(padding_atom, mu::Pos((u64) 0, (u64) 0, (u64) 0, interp->current_file()->id())), padding_type,
+            Reference, active_scope(), context.active_entity->get_decl());
+
+        entity->resolve_to(padding_type);
+        entity->set_member(size);
+
+        return entity;
     }
 
     Module * Typer::resolve_main_module(ast::ModuleFile *main_module) {
@@ -354,6 +370,73 @@ namespace mu {
         return constant;
     }
 
+    std::tuple<u64, u64, std::vector<ast::Ident*>> Typer::construct_member_order(std::vector<Entity*>& member) {
+        u64 size = 0;
+        if(member.empty()) {
+            return std::make_tuple(0, 0, std::vector<ast::Ident*>({}));
+        }
+        std::vector<ast::Ident*> order;
+
+        u32 num_paddings = 0;
+        u64 largest_align = 0;
+
+        std::vector<Entity*> entity_order;
+
+        for(auto e : member) {
+            // ignoring anything but locals.
+            if(!e->is_local())
+                continue;
+
+            auto type = e->get_type();
+
+            // this computes the needed padding
+            auto align = type->alignment();
+
+            if(align > largest_align)
+                largest_align = align;
+
+            auto padding = (align - (size % align)) % align;
+
+            interp->out_stream() << "Padding: " << padding << " Align: " << align << std::endl;
+
+            if(padding > 0) {
+                // add padding
+                std::string s = "__pad" + std::to_string(num_paddings++);
+                auto pad = new_padding(s, padding);
+                entity_order.emplace_back(pad);
+                size += pad->get_type()->size();
+
+            } 
+
+            e->as<Local>()->set_member(size);
+            entity_order.emplace_back(e);
+
+            size += type->size();
+        }
+
+        auto alignment = largest_align;
+
+
+        // size is not a multple of the largest align. padding needs to be added.
+        if(size % largest_align != 0) {
+            auto new_size = next_multiple(size, largest_align);
+            auto new_padding = new_size - size;
+
+            auto pad = this->new_padding("__pad" + std::to_string(num_paddings), new_padding);
+            pad->set_member(size);
+
+            entity_order.emplace_back(pad);
+
+            size = new_size;
+        }        
+
+        member = entity_order; 
+
+        interp->out_stream() << "Struct Size: " << size << " Alignment: " << alignment << std::endl;
+
+        return std::make_tuple(alignment, size, order);
+    }
+
     Entity* Typer::resolve_struct(Type* entity, ast::DeclPtr decl_ptr) {
         auto decl = decl_ptr->as<ast::Structure>();
         // I will duplicate code to reduce complexity.
@@ -365,9 +448,8 @@ namespace mu {
 
         push_scope(member_scope);
 
-        std::unordered_map<ast::Ident*, Entity*> members;
+        std::vector<Entity*> members;
 
-        u64 sz = 0;
         for(auto local : decl->members) {
             switch(local->kind) {
                 case ast::ast_member_variable: {
@@ -376,11 +458,8 @@ namespace mu {
                     if(entities.empty())
                         return nullptr;
 
-                    for(auto e : entities) {
-                        sz += e->get_type()->size();
-                        members.emplace(e->get_name(), e);
-                    }
-
+                    for(auto e : entities)
+                        members.emplace_back(e);
                     break;
                 }
                 default:
@@ -388,13 +467,18 @@ namespace mu {
             }
         }
 
+        // @TODO: Right now, struct padding is explicitly represented. This could be simplified
+        // to having an implied padding by only setting the offset.
+        auto [alignment, size, order] = construct_member_order(members);
+
         auto type = interp->checked_new_type<types::StructType>(entity->get_name(),
-            members, member_scope, sz, entity);
+            members, member_scope, size, entity, alignment);
 
 
         interp->message("Structure Resolution");
-        for(auto& [name, entity] : members) {
-            interp->message("%s -> %s", name->value().c_str(), entity->get_type()->str().c_str());
+        for(auto& entity : members) {
+            auto local = entity->as<Local>();
+            interp->message("%s -> %s | %lu", entity->get_name()->value().c_str(), entity->get_type()->str().c_str(), local->get_offset());
         }
 
         entity->resolve_to(type);
@@ -582,7 +666,7 @@ namespace mu {
                     types.push_back(op.type);
                     sz += op.type->size();
                 }
-                auto res_type = interp->checked_new_type<types::Tuple>(types, sz);
+                auto res_type = interp->checked_new_type<types::Tuple>(types, sz, types.front()->alignment());
 
                 // Rvalue because this is a tuple literal.
                 result = Operand(res_type, expr, RValue);
@@ -905,7 +989,7 @@ namespace mu {
                     }
                     return nullptr;
                 }
-                return interp->checked_new_type<types::Tuple>(types, sz);
+                return interp->checked_new_type<types::Tuple>(types, sz, types.front()->alignment());
             }
             case ast::ast_list_spec:
             case ast::ast_list_spec_dyn:

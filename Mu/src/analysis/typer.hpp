@@ -73,6 +73,8 @@ namespace mu {
 
             types::Type* existing_type(types::Type* type);
 
+            Local* new_padding(const std::string& name, u32 size);
+
             /*-----------------------Module Handling-------------------------*/
 
             // processes the main file, it must have main function.
@@ -112,6 +114,8 @@ namespace mu {
 
 
             /*--------------------Declaration Handling-----------------------*/
+
+            std::tuple<u64, u64, std::vector<ast::Ident*>> construct_member_order(std::vector<Entity*>& members);
 
             Entity* resolve_struct(Type* entity, ast::DeclPtr decl_ptr);
             Entity* resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr);

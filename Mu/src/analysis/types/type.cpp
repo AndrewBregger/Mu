@@ -71,7 +71,7 @@ mu::types::Type *mu::types::PrimitiveInt::base_type() {
     return this;
 }
 
-mu::types::PrimitiveString::PrimitiveString(Entity* declaration, u64 sz, u64 align) : Type(Primitive_String, sz),
+mu::types::PrimitiveString::PrimitiveString(Entity* declaration, u64 sz, u64 align) : Type(Primitive_String, sz, align),
     declaration(declaration)  {
 }
 
@@ -86,7 +86,7 @@ mu::types::Type *mu::types::PrimitiveString::base_type() {
     return this;
 }
 
-mu::types::PrimitiveFloat::PrimitiveFloat(mu::types::TypeKind k, u64 sz, u64 align) : Type(k, sz) {
+mu::types::PrimitiveFloat::PrimitiveFloat(mu::types::TypeKind k, u64 sz, u64 align) : Type(k, sz, align) {
 }
 
 mu::types::PrimitiveFloat::~PrimitiveFloat() = default;
@@ -133,7 +133,7 @@ mu::types::Type *mu::types::Pointer::base_type() {
     return base;
 }
 
-mu::types::Reference::Reference(mu::types::Type* &base) : Type(ReferenceType, 8), base(base) {
+mu::types::Reference::Reference(mu::types::Type* &base) : Type(ReferenceType, 8, 8), base(base) {
 }
 
 mu::types::Reference::~Reference() = default;
@@ -146,7 +146,7 @@ mu::types::Type *mu::types::Reference::base_type() {
     return base;
 }
 
-mu::types::Array::Array(mu::types::Type* &type, u64 count) : Type(ArrayType, count * type->size()),
+mu::types::Array::Array(mu::types::Type* &type, u64 count) : Type(ArrayType, count * type->size(), type->alignment()),
     type(type), count(count) {
 }
 
@@ -160,7 +160,7 @@ mu::types::Type *mu::types::Array::base_type() {
     return type;
 }
 
-mu::types::Mutable::Mutable(mu::types::Type* &type) : Type(MutableType, type->size()),
+mu::types::Mutable::Mutable(mu::types::Type* &type) : Type(MutableType, type->size(), type->alignment()),
     type(type) {
 }
 
@@ -174,8 +174,8 @@ mu::types::Type *mu::types::Mutable::base_type() {
     return type;
 }
 
-mu::types::Tuple::Tuple(std::vector<mu::types::Type*> &types, u64 sz) :
-    Type(TupleType, sz), types(types) {
+mu::types::Tuple::Tuple(std::vector<mu::types::Type*> &types, u64 sz, u64 align) :
+    Type(TupleType, sz, align), types(types) {
 }
 
 mu::types::Tuple::~Tuple() = default;
@@ -196,7 +196,7 @@ mu::types::Type *mu::types::Tuple::base_type() {
 
 // compute the size from the structure representing a dynamic array.
 // *T + u32 + u32
-mu::types::DynArray::DynArray(mu::types::Type* &type) : Type(DynArrayType, 8 + 4 + 4),
+mu::types::DynArray::DynArray(mu::types::Type* &type) : Type(DynArrayType, 8 + 4 + 4, type->alignment()),
     type(type) {
 }
 
@@ -210,9 +210,9 @@ mu::types::Type *mu::types::DynArray::base_type() {
     return this;
 }
 
-mu::types::StructType::StructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Entity *> &members,
-                                  mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration) :
-                                  Type(StructureType, sz), name(name), members(members), member_scope_ptr(member_scope_ptr),
+mu::types::StructType::StructType(ast::Ident *name, const std::vector<Entity *> &members,
+                                  mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration, u64 align) :
+                                  Type(StructureType, sz, align), name(name), members(members), member_scope_ptr(member_scope_ptr),
                                   declaration(declaration) {
 
    member_scope = member_scope_ptr->as<MemberScope>();
@@ -246,7 +246,7 @@ std::string mu::types::StructType::str() {
 }
 
 mu::types::FunctionType::FunctionType(const std::vector<Type*>& params,
-                                      mu::types::Type *ret) : Type(FunctType, 8),
+                                      mu::types::Type *ret) : Type(FunctType, 8, 8),
                                       params(params), ret(ret) {
 }
 
@@ -294,8 +294,8 @@ u64 mu::types::TypeFieldHasher::operator()(const mu::types::TypeField &field) co
     return hasher(field.name);
 }
 
-mu::types::SumType::SumType(ast::Ident *name, const std::unordered_map<ast::Ident *, mu::TypeMember *> &members,
-                            mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration) : Type(SType, sz),
+mu::types::SumType::SumType(ast::Ident *name, const std::vector<mu::TypeMember *> &members,
+                            mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration, u64 align) : Type(SType, sz, align),
                         name(name), members(members), member_scope_ptr(member_scope_ptr),
                         declaration(declaration) {
     member_scope = member_scope_ptr->as<MemberScope>();
@@ -316,8 +316,8 @@ std::string mu::types::SumType::str() {
 }
 
 mu::types::TraitType::TraitType(ast::Ident *name, const std::unordered_set<TypeField, TypeFieldHasher> &type_field,
-                                const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr,
-                                Entity *declaration) : Type(TraitAttributeType, 0), name(name),
+                                const std::vector<Function *> &members, ScopePtr member_scope_ptr,
+                                Entity *declaration) : Type(TraitAttributeType, 0, 0), name(name),
                                 type_fields(type_field), members(members), member_scope_ptr(member_scope_ptr),
                                 declaration(declaration) {
     member_scope = member_scope_ptr->as<MemberScope>();
@@ -337,8 +337,8 @@ std::string mu::types::TraitType::str() {
     return name->value();
 }
 
-mu::types::PolyStructType::PolyStructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Local *> &members,
-                                          ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration) : Type(PolyStructureType, 0),
+mu::types::PolyStructType::PolyStructType(ast::Ident *name, const std::vector<Local *> &members,
+                                          ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration) : Type(PolyStructureType, 0, 0),
                                           name(name), members(members), member_scope_ptr(member_scope_ptr),
                                           const_block_ptr(const_block_ptr), declaration(declaration) {
     member_scope = member_scope_ptr->as<MemberScope>();
@@ -376,9 +376,9 @@ std::string mu::types::PolyStructType::str() {
     return s;
 }
 
-mu::types::PolySumType::PolySumType(ast::Ident *name, const std::unordered_map<ast::Ident *, TypeMember *> &members,
+mu::types::PolySumType::PolySumType(ast::Ident *name, const std::vector<TypeMember *> &members,
                                     ScopePtr member_scope_ptr, ScopePtr const_block_potr, Entity *declaration) :
-                                Type(PolySType, 0), name(name), members(members), member_scope_ptr(member_scope_ptr),
+                                Type(PolySType, 0, 0), name(name), members(members), member_scope_ptr(member_scope_ptr),
                                 const_block_ptr(const_block_ptr), declaration(declaration) {
 
     member_scope = member_scope_ptr->as<MemberScope>();
@@ -417,7 +417,7 @@ std::string mu::types::PolySumType::str() {
 }
 
 mu::types::PolyFunction::PolyFunction(const std::vector<Type *> &params, Type *ret, ScopePtr const_block_ptr,
-                                      Entity *declaration) : Type(PolyFunctionType, 0),
+                                      Entity *declaration) : Type(PolyFunctionType, 0, 0),
                                                              params(params), ret(ret), const_block_ptr(const_block_ptr),
                                                              declaration(declaration) {
     const_block = const_block_ptr->as<ConstBlockScope>();
@@ -457,10 +457,10 @@ std::string mu::types::PolyFunction::str() {
 
 mu::types::PolyTraitType::PolyTraitType(ast::Ident *name,
                                         const std::unordered_set<TypeField, TypeFieldHasher> &type_fields,
-                                        const std::unordered_map<ast::Ident *, Function *> &members,
+                                        const std::vector<Function *> &members,
                                         ScopePtr member_scope_ptr,
                                         ScopePtr &const_block_ptr, Entity *declaration) :
-                                        Type(PolyTraitAttributeType, 0), name(name),
+                                        Type(PolyTraitAttributeType, 0, 0), name(name),
                                         type_fields(type_fields), members(members), member_scope_ptr(member_scope_ptr),
                                         const_block_ptr(const_block_ptr), declaration(declaration) {
     member_scope = member_scope_ptr->as<MemberScope>();
@@ -504,7 +504,7 @@ mu::types::TypeBounds::TypeBounds(mu::types::PolymorphicType *bounded,
 
 mu::types::PolymorphicType::PolymorphicType(ast::Ident *name, std::vector<mu::types::TraitType *> &bounds,
                                             Entity* declaration) :
-    Type(PolyType, 0), name(name), bounds(this, bounds), declaration(declaration) {
+    Type(PolyType, 0, 0), name(name), bounds(this, bounds), declaration(declaration) {
 }
 
 mu::types::PolymorphicType::~PolymorphicType() = default;
@@ -514,7 +514,7 @@ mu::types::Type *mu::types::PolymorphicType::base_type() {
 }
 
 mu::types::ModuleType::ModuleType(ast::Ident *name, mu::ScopePtr module_scope_ptr, ast::AstNode *module_node) :
-    Type(ModType, 0), name(name), module_node(module_node), module_scope_ptr(module_scope_ptr) {
+    Type(ModType, 0, 0), name(name), module_node(module_node), module_scope_ptr(module_scope_ptr) {
 }
 
 mu::types::ModuleType::~ModuleType() = default;

@@ -193,7 +193,7 @@ namespace mu {
 
         class PrimitiveInt : public Type {
         public:
-            PrimitiveInt(TypeKind k, u64 sz);
+            PrimitiveInt(TypeKind k, u64 sz, u64 align);
 
             virtual ~PrimitiveInt();
 
@@ -215,7 +215,7 @@ namespace mu {
 
         class PrimitiveFloat : public Type {
         public:
-            PrimitiveFloat(TypeKind k, u64 sz);
+            PrimitiveFloat(TypeKind k, u64 sz, u64 align);
 
             virtual ~PrimitiveFloat();
 
@@ -234,7 +234,7 @@ namespace mu {
 
         class PrimitiveString : public Type {
         public:
-            PrimitiveString(Entity* declaration, u64 sz);
+            PrimitiveString(Entity* declaration, u64 sz, u64 align);
 
             virtual ~PrimitiveString();
 
@@ -272,7 +272,7 @@ namespace mu {
 
         class Tuple : public Type {
         public:
-            Tuple(std::vector<Type*> &types, u64 sz);
+            Tuple(std::vector<Type*> &types, u64 sz, u64 align);
 
             virtual ~Tuple();
 
@@ -374,8 +374,8 @@ namespace mu {
 
         struct StructType : public Type {
         public:
-            StructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Entity *> &members,
-                       mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration);
+            StructType(ast::Ident *name, const std::vector<Entity *> &members,
+                       mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration, u64 align);
 
             virtual ~StructType();
 
@@ -393,7 +393,7 @@ namespace mu {
         private:
             ast::Ident *name;
             // this includes methods and locals
-            std::unordered_map<ast::Ident *, Entity *> members;
+            std::vector<Entity *> members;
 
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};
@@ -404,8 +404,8 @@ namespace mu {
 
         struct SumType : public Type {
         public:
-            SumType(ast::Ident *name, const std::unordered_map<ast::Ident *, mu::TypeMember *> &members,
-                    mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration);
+            SumType(ast::Ident *name, const std::vector<mu::TypeMember *> &members,
+                    mu::ScopePtr member_scope_ptr, u64 sz, Entity *declaration, u64 align);
 
             virtual ~SumType();
 
@@ -420,7 +420,7 @@ namespace mu {
 
         private:
             ast::Ident *name;
-            std::unordered_map<ast::Ident *, TypeMember *> members;
+            std::vector<mu::TypeMember *> members;
 
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};
@@ -466,7 +466,7 @@ namespace mu {
         class TraitType : public Type {
         public:
             TraitType(ast::Ident *name, const std::unordered_set<TypeField, TypeFieldHasher> &type_field,
-                      const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr,
+                      const std::vector<Function *> &members, ScopePtr member_scope_ptr,
                       Entity *declaration);
 
             virtual ~TraitType();
@@ -483,7 +483,7 @@ namespace mu {
         private:
             ast::Ident *name;
             std::unordered_set<TypeField, TypeFieldHasher> type_fields;
-            std::unordered_map<ast::Ident *, Function *> members;
+            std::vector<Function *> members;
 
             MemberScope *member_scope{nullptr};
             ScopePtr member_scope_ptr;
@@ -492,7 +492,7 @@ namespace mu {
 
         class PolyStructType : public Type {
         public:
-            PolyStructType(ast::Ident *name, const std::unordered_map<ast::Ident *, Local *> &members,
+            PolyStructType(ast::Ident *name, const std::vector<Local *> &members,
                            ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration);
 
             virtual ~PolyStructType();
@@ -505,7 +505,7 @@ namespace mu {
 
         private:
             ast::Ident *name;
-            std::unordered_map<ast::Ident *, Local *> members;
+            std::vector<Local *> members;
 
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};
@@ -519,7 +519,7 @@ namespace mu {
         class PolySumType : public Type {
         public:
 
-            PolySumType(ast::Ident *name, const std::unordered_map<ast::Ident *, TypeMember *> &members,
+            PolySumType(ast::Ident *name, const std::vector<TypeMember *> &members,
                         ScopePtr member_scope_ptr, ScopePtr const_block_potr, Entity *declaration);
 
             virtual ~PolySumType();
@@ -532,7 +532,7 @@ namespace mu {
 
         private:
             ast::Ident *name;
-            std::unordered_map<ast::Ident *, TypeMember *> members;
+            std::vector<TypeMember *> members;
 
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};
@@ -571,7 +571,7 @@ namespace mu {
         public:
 
             PolyTraitType(ast::Ident *name, const std::unordered_set<TypeField, TypeFieldHasher> &type_fields,
-                          const std::unordered_map<ast::Ident *, Function *> &members, ScopePtr member_scope_ptr,
+                          const std::vector<Function *> &members, ScopePtr member_scope_ptr,
                           ScopePtr &const_block_ptr, Entity *declaration);
 
             virtual ~PolyTraitType();
@@ -585,7 +585,7 @@ namespace mu {
         private:
             ast::Ident *name;
             std::unordered_set<TypeField, TypeFieldHasher> type_fields;
-            std::unordered_map<ast::Ident *, Function *> members;
+            std::vector<Function *> members;
 
             MemberScope *member_scope{nullptr};
             ScopePtr member_scope_ptr;
