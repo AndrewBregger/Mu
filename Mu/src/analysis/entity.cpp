@@ -190,7 +190,9 @@ namespace mu {
     }
 
     Local::Local(ast::Ident *name, types::Type *type, AddressType addr_type, ScopePtr p, ast::DeclPtr decl) :
-        Entity(name, p, LocalEntity, decl), addr_type(addr_type), mut(decl->kind == ast::ast_mut) {
+        Entity(name, p, LocalEntity, decl), addr_type(addr_type),  {
+        if(decl->kind == ast::ast_mut)
+            set_mutable();
         this->type = type;
     }
 
@@ -207,8 +209,9 @@ namespace mu {
     void Local::debug_print(std::ostream& out) {
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
-        out << "\tinitialized: " << (initialized ? "true" : "false") << std::endl;
-        out << "\tmutable: " << (mut? "true" : "false") << std::endl;
+        out << "\tinitialized: " << (is_initialized() ? "true" : "false") << std::endl;
+        out << "\tmutable: " << (is_mutable()? "true" : "false") << std::endl;
+        out << "\tmember: " << (is_member() ? "true" : "false") << std::endl;
         out << "\taddressing: ";
         switch(addr_type) {
             case Value:

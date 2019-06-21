@@ -196,9 +196,10 @@ namespace mu {
 
             struct Context {
                 Entity*     impl_block_entity{nullptr}; // the Self entity when resolving an impl block
-                Entity*  entity_active_entity{nullptr}; // current entity being resolved
+                Entity*     active_entity{nullptr};     // current entity being resolved
                 bool resolving_loop{false};             // true when resolving for, while, loop
                 ScopePtr current_scope{nullptr};  // the current scope being resolved.
+                bool allow_incomplete_types{false};     // this is to allow incomplete pointer or references (ie. in linked lists).
             };
 
             void increment_error();

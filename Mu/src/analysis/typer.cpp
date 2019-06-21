@@ -19,6 +19,16 @@
     increment_error(); \
 }
 
+// these are not well defined. they owuld only be used
+// once in a single scope.
+#define push_context_state(var, new_state) \
+    auto _old_##var = context.var; \
+    context.var = new_state;
+
+
+#define pop_context_state(var) context.var = _old_##var;
+
+
 
 extern mu::types::Type* type_u8;
 extern mu::types::Type* type_u16;
@@ -203,9 +213,6 @@ namespace mu {
 
     Entity *Typer::resolve_entity(Entity *entity) {
         interp->message("Resolving: %s", entity->str().c_str());
-
-        entity->update_status(Resolving);
-
         if(entity->is_resolved()) {
             interp->message("\tAlready Resolved: Returning");
             return entity;
@@ -220,7 +227,16 @@ namespace mu {
             return nullptr;
         }
 
-        return entity->resolve(this);
+        entity->update_status(Resolving);
+        context.active_entity = entity;
+
+        auto e = entity->resolve(this);
+
+        if(e != entity)
+            interp->message("The Entity was changed during resolution");
+
+        context.active_entity = nullptr;
+        return e;
     }
 
     Entity *Typer::resolve(Global *global) {
@@ -863,6 +879,10 @@ namespace mu {
 
                 auto entity = resolve_expr_spec(e->type.get());
 
+                // this is for pointers and reference with in a struct to itself.
+                if(context.allow_incomplete_types and !entity->is_resolved()) {
+                }
+
                 if(!entity->is_resolved())
                     entity->resolve(this);
                 
@@ -892,17 +912,28 @@ namespace mu {
                 break;
             case ast::ast_ptr: {
                 auto s = spec->as<ast::PtrSpec>();
+
+                push_context_state(allow_incomplete_types, true)
+                
                 auto base_type = resolve_spec(s->type.get());
+
+                pop_context_state(allow_incomplete_types);
+
                 return interp->checked_new_type<types::Pointer>(base_type);
             }
             case ast::ast_ref: {
                 auto s = spec->as<ast::RefSpec>();
+                push_context_state(allow_incomplete_types, true)
+
                 auto base_type = resolve_spec(s->type.get());
+
+                pop_context_state(allow_incomplete_types);
+
                 return interp->checked_new_type<types::Reference>(base_type);
             }
             case ast::ast_mut: {
                 auto s = spec->as<ast::MutSpec>();
-                auto base_type = resolve_spec(s);
+                auto base_type = resolve_spec(s->type.get());
                 return interp->checked_new_type<types::Mutable>(base_type);
             }
             case ast::ast_self_type: {

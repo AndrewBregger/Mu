@@ -100,13 +100,14 @@ namespace mu {
          */
         class Type {
         public:
-            explicit Type(TypeKind k, u64 sz);
+            explicit Type(TypeKind k, u64 sz, u64 align);
 
             virtual ~Type();
 
             inline TypeKind kind() { return k; }
 
             inline u64 size() { return sz; }
+            inline u64 alignment() { return align; }
 
             virtual std::string str() = 0;
 
@@ -173,6 +174,7 @@ namespace mu {
         private:
             TypeKind k;
             u64 sz;
+            u64 align;
         };
 
         class PolymorphicType;

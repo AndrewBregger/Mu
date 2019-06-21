@@ -167,6 +167,13 @@ namespace mu {
 
     typedef std::unique_ptr<Entity> EntityPtr;
 
+    enum LocalFlags : u16 {
+        Initialized = 1,
+        Mutable = 2,
+        Visible = 4,
+        IsMember = 8,
+    };
+
     class Local : public Entity {
     public:
         Local(ast::Ident* name, types::Type* type, AddressType addr_type, ScopePtr p, ast::DeclPtr decl);
@@ -181,11 +188,22 @@ namespace mu {
 
         std::string str() override;
 
-        inline bool is_mutable() { return mut; }
-        inline bool is_initialized() { return initialized; }
-        inline bool is_visable() { return visable; }
-        inline void set_initialized() { initialized = true; }
-        inline void set_visable() { visable = true; }
+        inline bool is_mutable() { return flags & Mutable; }
+        inline bool is_initialized() { return flags & Initialized; }
+        inline bool is_visable() { return flags & Visible; }
+        inline bool is_member() { return flags & IsMember; }
+
+        inline void set_mutable() { flags |= Mutable; }
+        inline void set_initialized() { flags |= Initialized; }
+        inline void set_visable() { flags |= Visible; }
+        inline void set_member(u32 offset) {
+            this->offset = offset;
+            flags |= IsMember;
+        }
+
+        inline u32 get_offset() {
+            return offset;
+        }
 
 
         void set_addressing(AddressType t);
@@ -194,9 +212,10 @@ namespace mu {
         
     private:
         AddressType addr_type{Unknown};
-        bool initialized{false}; // says whether this variable has been initialized.
-        bool mut{false};
-        bool visable{false};
+        u16 flags{0};
+
+        // member variables;
+        u32 offset{0};
     };
 
     class Global : public Entity {

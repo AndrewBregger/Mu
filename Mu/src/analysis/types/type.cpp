@@ -7,13 +7,13 @@
 #include "interpreter.hpp"
 #include <utility>
 
-mu::types::Type::Type(mu::types::TypeKind k, u64 sz) : k(k), sz(sz) {
+mu::types::Type::Type(mu::types::TypeKind k, u64 sz, u64 align) : k(k), sz(sz), align(align) {
 
 }
 
 mu::types::Type::~Type() = default;
 
-mu::types::PrimitiveInt::PrimitiveInt(mu::types::TypeKind k, u64 sz) : Type(k, sz) {
+mu::types::PrimitiveInt::PrimitiveInt(mu::types::TypeKind k, u64 sz, u64 align) : Type(k, sz, align) {
 }
 
 mu::types::PrimitiveInt::~PrimitiveInt() = default;
@@ -71,7 +71,7 @@ mu::types::Type *mu::types::PrimitiveInt::base_type() {
     return this;
 }
 
-mu::types::PrimitiveString::PrimitiveString(Entity* declaration, u64 sz) : Type(Primitive_String, sz),
+mu::types::PrimitiveString::PrimitiveString(Entity* declaration, u64 sz, u64 align) : Type(Primitive_String, sz),
     declaration(declaration)  {
 }
 
@@ -86,7 +86,7 @@ mu::types::Type *mu::types::PrimitiveString::base_type() {
     return this;
 }
 
-mu::types::PrimitiveFloat::PrimitiveFloat(mu::types::TypeKind k, u64 sz) : Type(k, sz) {
+mu::types::PrimitiveFloat::PrimitiveFloat(mu::types::TypeKind k, u64 sz, u64 align) : Type(k, sz) {
 }
 
 mu::types::PrimitiveFloat::~PrimitiveFloat() = default;
@@ -106,7 +106,7 @@ mu::types::Type *mu::types::PrimitiveFloat::base_type() {
     return this;
 }
 
-mu::types::UnitType::UnitType() : Type(Unit_Type, 0) {
+mu::types::UnitType::UnitType() : Type(Unit_Type, 0, 0) {
 }
 
 mu::types::UnitType::~UnitType() = default;
@@ -120,7 +120,7 @@ std::string mu::types::UnitType::str() {
 }
 
 // Get Pointer size from platform.
-mu::types::Pointer::Pointer(mu::types::Type* &base) : Type(PtrType, (u64) 8), base(base) {
+mu::types::Pointer::Pointer(mu::types::Type* &base) : Type(PtrType, (u64) 8, (u64) 8), base(base) {
 }
 
 mu::types::Pointer::~Pointer() = default;
