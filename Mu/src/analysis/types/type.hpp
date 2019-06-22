@@ -282,13 +282,17 @@ namespace mu {
 
             bool is_tuple() override { return true; }
 
+            inline u64 num_elements() { return types.size(); }
+
             template<typename Ty>
             Ty *get(u64 i) {
-                if (i < types.size())
+                if (i < num_elements())
                     return CAST_PTR(Ty, types[i]);
                 else
                     return nullptr;
             }
+
+            Type* get_element_type(u64 i);
 
         private:
             std::vector<Type*> types;

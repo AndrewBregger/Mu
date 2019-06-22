@@ -27,8 +27,9 @@ namespace mu {
     const Val NO_VALUE;
 
     enum AccessType {
-        LValue,
-        RValue,
+        LValue, // assignable value
+        RValue, // result value
+        TypeAccess, // the result is a type.
     };
 
     // the result of an expression
@@ -177,6 +178,12 @@ namespace mu {
             Operand resolve_cast(ast::Cast* expr);
 
             Operand resolve_literals(ast::Expr* expr);
+
+            Operand resolve_accessor(ast::Expr* expr);
+
+            Operand resolve_tuple_accessor(ast::Expr* expr);
+
+            Operand resolve_struct_expr(ast::Expr* expr);
 
             /*--------------------------Spec Handling----------------------------*/
             // resolve a type spec to the type it specifies.

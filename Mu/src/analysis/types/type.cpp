@@ -194,6 +194,13 @@ mu::types::Type *mu::types::Tuple::base_type() {
     return this;
 }
 
+mu::types::Type* mu::types::Tuple::get_element_type(u64 i) {
+    if (i < num_elements())
+        return types[i];
+    else
+        return nullptr;
+}
+
 // compute the size from the structure representing a dynamic array.
 // *T + u32 + u32
 mu::types::DynArray::DynArray(mu::types::Type* &type) : Type(DynArrayType, 8 + 4 + 4, type->alignment()),

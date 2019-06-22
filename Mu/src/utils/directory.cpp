@@ -61,7 +61,6 @@ namespace io {
                 if((entry->d_type & DT_DIR) == DT_DIR) {
                     // a directory
                     auto file = new io::Directory(p, only_source);
-                    std::cout << "New Directory: " << p.string() << std::endl;
                     content.emplace(file->id(), file);
                 }
                 else if((entry->d_type & DT_REG) == DT_REG) {
@@ -70,7 +69,6 @@ namespace io {
                         if(p.extension().string() != EXTENSION_NAME.string())
                             continue;
 
-                    std::cout << "New File: " << p.string() << std::endl;
                     auto file = new io::File(p);
                     content.emplace(file->id(), file);
                 }

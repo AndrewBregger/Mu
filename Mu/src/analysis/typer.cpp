@@ -82,8 +82,8 @@ namespace mu {
     }
 
     bool Typer::is_redeclaration(ast::Ident* name) {
-        auto entity = search_scope(active_scope(), name);
-        return entity != nullptr;
+        auto [_, valid] = active_scope()->find(name);
+        return valid;
     }
 
 
@@ -291,11 +291,11 @@ namespace mu {
         if(spec)
             resolved_type = resolve_spec(spec);
 
-        if(init)
+        if(init) {
             expr_type = resolve_expr(init, resolved_type);
-        
-        if(expr_type.error) {
-            return nullptr;
+            if(expr_type.error) {
+                return nullptr;
+            }
         }
 
         if(resolved_type and expr_type.type) {
@@ -484,8 +484,6 @@ namespace mu {
         entity->resolve_to(type);
 
         pop_scope();
-
-
         return entity;
     }
 
@@ -626,7 +624,6 @@ namespace mu {
                 add_entity(e);
             }
         }
-
         return entities;
     }
 
@@ -640,6 +637,9 @@ namespace mu {
             case ast::ast_name:
             case ast::ast_name_generic:
                 result = resolve_name(expr);
+                break;
+            case ast::ast_unit_expr:
+                result = Operand(type_unit, expr, RValue);
                 break;
             case ast::ast_integer:
             case ast::ast_fl:
@@ -673,6 +673,15 @@ namespace mu {
                 break;
 
             }
+            case ast::ast_accessor:
+                result = resolve_accessor(expr);
+                break;
+            case ast::ast_tuple_accessor:
+                result = resolve_tuple_accessor(expr);
+                break;
+            case ast::ast_struct_expr:
+                result = resolve_struct_expr(expr);
+                break;
             default:
                 break;
         }
@@ -929,25 +938,28 @@ namespace mu {
 
         if(entity->is_local()) {
             auto local = entity->as<Local>();
+            auto op = Operand(local->get_type(), expr, LValue);
             if(!local->is_initialized()) {
                 report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
                 interp->message("'%s' is declared here:", expr->name->value().c_str());
                 interp->print_file_section(local->get_decl()->pos());
+                op.error = true;
             }
-            return Operand(local->get_type(), expr, LValue);
-            // local->get_type();
+            return op;
         }
         else if(entity->is_global()) {
             auto global = entity->as<Global>(); 
             // resolve the entity anyway.
             global->resolve(this);
+            auto op = Operand(global->get_type(), expr, LValue);
             if(!global->is_initialized()) {
                 report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
                 interp->message("'%s' is declared here:", expr->name->value().c_str());
                 // interp->out_stream() << "\t";
                 interp->print_file_section(global->get_decl()->pos());
+                op.error = true;
             }
-            return Operand(global->get_type(), expr, LValue);
+            return op;
         }
     }
 
@@ -955,6 +967,141 @@ namespace mu {
         return Operand(nullptr, nullptr, LValue);
     }
 
+
+    Operand Typer::resolve_accessor(ast::Expr* expr) {
+        auto accessor = expr->as<ast::Accessor>();
+
+        if(!accessor) {
+            interp->fatal("Compiler Error: invalid ast");
+        }
+
+        auto operand = resolve_expr(accessor->operand.get());
+        if(operand.error)
+            return operand;
+
+        auto type = operand.type;
+
+        // I will allow trait and sum types to be included.
+        bool allowed_types = type->is_struct(); // || type->is_trait() || type->is_stype();
+
+        if(!allowed_types) {
+            /// @TODO-Define: non-accessable
+            report(operand.expr->pos(), "request for member '%s' in non-accessable type: '%s'", type->str().c_str()); 
+            operand.error = true;
+            return operand;
+        }
+
+        // @TODO-refactor to allow trait and sum types to be used.
+
+        auto access = operand.access;
+
+        switch(type->kind()) {
+            case types::StructureType: {
+                auto ctype = type->as<types::StructType>();
+                auto scope = ctype->get_scope();
+
+                // search for entity
+                auto entity = search_scope(scope, accessor->name);
+                if(!entity) {
+                    report(accessor->name->pos, "'%s' is not a member of '%s'",
+                        accessor->name->value().c_str(),
+                        ctype->str().c_str());
+                    return Operand(expr);
+                }
+
+
+                switch(access) {
+                    case TypeAccess: {
+                        // this meant the element is a local member of the struct
+                        // and is accessable only via an instance of the type.
+                        // Not statically as is in this case.
+                        if(entity->is_local()) {
+                            report(accessor->name->pos, "unable to access '%s' of '%s' in this context",
+                                accessor->name->value().c_str(), type->str().c_str());
+                            return Operand(expr);
+                        }
+                        else if(entity->is_function()) {
+                            return Operand(entity->get_type(), expr, TypeAccess);
+                        }
+                    }
+                    default:
+                        if(entity->is_local()) {
+                            return Operand(entity->get_type(), expr, access);
+                        }
+                        else if(entity->is_module() || entity->is_type()) {
+                            return Operand(entity->get_type(), expr, TypeAccess);
+                        }
+                        else if(entity->is_function()) {
+                            // If this method doesnt have any required parameters then
+                            // this is a valid calling fo the function.
+                            // To get a function pointer, use Type.funct_name.
+
+                            // I think this should be TypeAccess maybe this could be change to be just a function Acces type.
+                            return Operand(entity->get_type(), expr, TypeAccess);
+                            // report(accessor->name->pos, "unable to access method")
+                        }
+                        else {
+                            report_str(expr->pos(), "invalid accessor expression: this is probably a compiler bug");
+                            return Operand(expr);
+                        }
+                }
+            }
+            case types::SType:
+            case types::TraitAttributeType:
+                report(expr->pos(), "acessing of a '%s' is not imlementented", type->str().c_str());
+                return Operand(expr);
+            default:
+                return Operand(expr);
+
+        }
+    }
+
+    Operand Typer::resolve_tuple_accessor(ast::Expr* expr) {
+        auto accessor = expr->as<ast::TupleAcessor>();
+
+        if(!accessor) {
+            interp->fatal("Compiler Error: invalid ast");
+        }
+
+        auto operand = resolve_expr(accessor->operand.get());
+
+        if(operand.error) {
+            return operand;
+        }
+
+        if(operand.type->is_tuple()) {
+            auto tuple = operand.type->as<types::Tuple>();
+
+            if(accessor->value >= tuple->num_elements()) {
+                report(expr->pos(), "request for element '%lu' of tuple of '%lu' element",
+                    accessor->value, tuple->num_elements());
+                return Operand(expr);
+            }
+            auto out_type = tuple->get_element_type(accessor->value);
+            if(!out_type) {
+                interp->out_stream() << tuple->str() << std::endl;
+                interp->fatal("tuple type was constructed incorrectly");
+            }
+            return Operand(out_type, expr, operand.access);
+        }
+        else {
+            report(operand.expr->pos(), "unable to constant index non-tuple types, found type '%s'",
+                operand.type->str().c_str());
+            return operand;
+        }
+    }
+
+    Operand Typer::resolve_struct_expr(ast::Expr* expr) {
+        auto str = expr->as<ast::StructExpr>();
+
+        if(!str) {
+            interp->fatal("Compiler Error: invalid ast");
+        }
+
+        
+    }
+
+    // Some of my spec resolution can be reduced to resolving expression.
     // how to make sure multiple of the same type are not created
     types::Type *Typer::resolve_spec(ast::Spec *spec) {
         switch(spec->kind) {
