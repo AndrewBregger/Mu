@@ -349,19 +349,163 @@ namespace mu {
         }
     }
 
-    std::tuple<types::FunctionType*, std::vector<Local*>> Typer::resolve_function_signiture(ast::ProcedureSigniture* sig) {
-        std::vector<Local*> parmas;
-        types::FunctionType* type;
+    std::tuple<std::vector<Local *>, bool> Typer::resolve_function_members(ast::ProcedureSigniture *sig) {
+        std::vector<Local*> params;
 
+        assert(active_scope()->kind() == Parameter_Scope);
+
+        bool is_first = true;
+        bool is_error = false;
         for(auto param : sig->parameters) {
+            switch(param->kind) {
+                case ast::ast_procedure_parameter: {
+                    auto p = param->as<ast::ProcedureParameter>();
+                    if(p->pattern->kind == ast::ast_ident_pattern) {
+                        auto name = p->pattern->as<ast::IdentPattern>();
+                        types::Type* type = nullptr;
+                        Operand operand(p->init.get());
 
+                        if(is_redeclaration(name->name)) {
+                            report(name->pos(), "parameter '%s' is redeclared in this scope", name->name->value().c_str());
+                            is_error = true;
+                        }
+
+                        if(p->type)
+                            type = resolve_spec(p->type.get());
+
+                        if(p->init) {
+                            operand = resolve_expr(p->init.get(), type);
+                        }
+
+                        // this is an actual error.
+                        if(operand.type and operand.error) {
+                            return std::make_tuple(params, false);
+                        }
+
+                        if(p->type->kind == ast::ast_infer_type and !operand.type) {
+                            report_str(p->pos(), "infer types are not implemented at this time");
+                            return std::make_tuple(params, false);
+                        }
+
+                        if(p->type->kind == ast::ast_infer_type) {
+                            type = operand.type;
+                        }
+
+                        auto local = interp->new_entity<Local>(name->name, type, get_addressing_by_type(type), active_scope(), param);
+
+                        add_entity(local);
+
+                        // if there is an initialize then there is a default value
+                        if(!operand.error) {
+                            local->set_initialized();
+                        }
+
+                        // this needed but it is resetting the type.
+                        local->set_parameter();
+                        local->resolve_to(type);
+
+                        params.push_back(local);
+                    }
+                    else {
+                        report_str(p->pos(), "invalid pattern as function parameter, only identifiers are allowed right now");
+                        return std::make_tuple(params, false);
+                    }
+                } break;
+                case ast::ast_self_parameter: {
+                    auto p = param->as<ast::SelfParameter>();
+                    if(!is_first) {
+                        report_str(param->pos(), "self must be the first parameter");
+                        return std::make_tuple(params, false);
+                    }
+                } break;
+                default:
+                    interp->fatal("Invalid ast");
+                    break;
+
+            }
+            is_first = false;
         }
 
-        return std::make_tuple(type, params);
+        return std::make_tuple(params, !is_error);
     }
 
     Entity *Typer::resolve(Function *funct) {
+        auto function_decl = funct->get_decl_as<ast::Procedure>();
+        ast::Ident *foreign_name{nullptr};
 
+        for (auto &attr : function_decl->attributeList.attributes) {
+            if (attr.attr->val == interp->find_name("foreign")) {
+                funct->set_foreign(attr.value);
+                foreign_name = attr.attr;
+            }
+        }
+
+        auto params_scope = make_scope<ParameterScope>(function_decl, active_scope());
+        push_scope(params_scope);
+
+        auto [params, valid] = resolve_function_members(function_decl->signiture.get());
+        std::vector<types::Type*> param_types;
+        if(!valid) {
+            // the error has already been reported.
+            return nullptr;
+        }
+
+        for(auto e : params) {
+            param_types.emplace_back(e->get_type());
+        }
+
+        funct->set_param_info(params, params_scope);
+
+        types::Type* ret_type{nullptr};
+        Operand expr_ret(function_decl->body.get());
+
+        if(function_decl->signiture->ret) {
+            auto ret = function_decl->signiture->ret;
+            if(ret->kind == ast::ast_infer_type and context.resolving_trait_body) {
+                report_str(ret->pos(), "unable to infer the return type of a trait function");
+                return nullptr;
+            }
+            else if(ret->kind == ast::ast_infer_type and funct->is_foreign()) {
+                report_str(ret->pos(), "unable to infer the return type of a foreign function");
+                return nullptr;
+            }
+            else
+                ret_type = resolve_spec(ret.get());
+        }
+
+        if(function_decl->body) {
+            if(funct->is_foreign()) {
+                report_str(foreign_name->pos, "function is foreign and has a body");
+                return nullptr;
+            }
+            else
+                expr_ret = resolve_expr(function_decl->body.get(), ret_type);
+        }
+        else {
+            funct->set_no_body();
+            if(!funct->is_foreign() and !context.resolving_trait_body) {
+                report_str(foreign_name->pos, "function is missing a body. Not marked as foreign nor a trait function");
+                return nullptr;
+            }
+            else {
+                // are there any special cases in regards to foreign functions and trait functions?
+                auto type = interp->checked_new_type<types::FunctionType>(param_types, ret_type);
+                funct->resolve_to(type);
+                return funct;
+            }
+        }
+
+        if(expr_ret.error) {
+            return nullptr;
+        }
+
+        pop_scope();
+
+        if(!ret_type)
+            ret_type = expr_ret.type;
+
+        auto type = interp->checked_new_type<types::FunctionType>(param_types, ret_type);
+        funct->resolve_to(type);
         return funct;
     }
 
@@ -492,10 +636,6 @@ namespace mu {
 
     Entity* Typer::resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr) {
         return entity;
-    }
-
-    types::FunctionType* Typer::resolve_function_signiture(ast::ProcedureSigniture* sig) {
-        return nullptr;
     }
 
     Entity* Typer::resolve_function(Type* entity, ast::DeclPtr decl_ptr) {

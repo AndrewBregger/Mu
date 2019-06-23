@@ -172,6 +172,8 @@ namespace mu {
         Mutable = 2,
         Visible = 4,
         IsMember = 8,
+        IsParameter = 16,
+        InheritVisibility = 32,
     };
 
     class Local : public Entity {
@@ -192,10 +194,16 @@ namespace mu {
         inline bool is_initialized() { return flags & Initialized; }
         inline bool is_visable() { return flags & Visible; }
         inline bool is_member() { return flags & IsMember; }
+        inline bool is_parameter() { return flags & IsParameter; }
+        inline bool is_visibility_inherited() { return flags & InheritVisibility; }
 
         inline void set_mutable() { flags |= Mutable; }
         inline void set_initialized() { flags |= Initialized; }
         inline void set_visable() { flags |= Visible; }
+        inline void set_parameter() { flags |= IsParameter; }
+
+        inline void set_inherit_visibility() { flags |- InheritVisibility; }
+
         inline void set_member(u32 offset) {
             this->offset = offset;
             flags |= IsMember;
@@ -216,6 +224,7 @@ namespace mu {
 
         // member variables;
         u32 offset{0};
+//        Function* function;
     };
 
     class Global : public Entity {
@@ -296,10 +305,16 @@ namespace mu {
 
     };
 
+    enum FunctionFlags : u32 {
+        ForeignFunction = 1,
+        InlineFunction = 2,
+        NoBody = 4,
+    };
+
     class Function : public Entity {
     public:
-        Function(ast::Ident* name, const std::unordered_map<ast::Ident*, Local*>& params,
-            ScopePtr params_scope_ptr, types::Type* type, ScopePtr p, ast::DeclPtr decl);
+        Function(ast::Ident *name, const std::vector<Local *> &params,
+                 ScopePtr params_scope_ptr, types::Type *type, ScopePtr p, ast::DeclPtr decl);
 
         Function(ast::Ident *name, ScopePtr p, ast::DeclPtr decl);
 
@@ -307,16 +322,34 @@ namespace mu {
 
         std::string str() override;
 
-        Entity* resolve(Typer* typer) override;
+        Entity *resolve(Typer *typer) override;
 
         bool is_function() override { return true; }
 
-        void debug_print(std::ostream& out) override;
+        void debug_print(std::ostream &out) override;
+
+        inline bool is_foreign() { return flags & ForeignFunction; }
+        inline bool is_inline() { return flags & InlineFunction; }
+        inline bool no_body() { return flags & NoBody; }
+        inline void set_foreign(const std::string &name) {
+            foreign_name = name;
+            flags |= ForeignFunction;
+        }
+
+        inline void set_inline() { flags |= InlineFunction; }
+        inline void set_no_body() { flags |= NoBody; }
+        const std::string& get_foreign_name() { return foreign_name; }
+
+        void set_param_info(const std::vector<Local*>& params, ScopePtr scope);
+
 
     private:
-        std::unordered_map<ast::Ident*, Local*> params;
+        std::vector<Local*> params;
         ParameterScope* param_scope{nullptr};
         ScopePtr        param_scope_ptr;
+
+        u32 flags{0};
+        std::string foreign_name;
     };
 
     class Alias : public Entity {

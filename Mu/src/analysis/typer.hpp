@@ -88,7 +88,7 @@ namespace mu {
             Entity* resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr);
 
             // this function builds the local pramameters and generates the function type to be used by the entity.
-            std::tuple<types::FunctionType*, std::vector<Local*>> resolve_function_signiture(ast::ProcedureSigniture* sig);
+            std::tuple<std::vector<Local *>, bool> resolve_function_members(ast::ProcedureSigniture *sig);
 
             Entity* resolve_function(Type* entity,ast::DeclPtr decl_ptr); 
             Entity* resolve_poly_function(Type* entity, ast::DeclPtr decl_ptr);
@@ -179,6 +179,7 @@ namespace mu {
                 bool resolving_loop{false};             // true when resolving for, while, loop
                 ScopePtr current_scope{nullptr};  // the current scope being resolved.
                 bool allow_incomplete_types{false};     // this is to allow incomplete pointer or references (ie. in linked lists).
+                bool resolving_trait_body{false};       // resolving trait body, this means that function do not have to have a body.
             };
 
             void increment_error();

@@ -212,6 +212,7 @@ namespace mu {
         out << "\tinitialized: " << (is_initialized() ? "true" : "false") << std::endl;
         out << "\tmutable: " << (is_mutable()? "true" : "false") << std::endl;
         out << "\tmember: " << (is_member() ? "true" : "false") << std::endl;
+        out << "\tparameter: " << (is_parameter() ? "true" : "false") << std::endl;
         out << "\taddressing: ";
         switch(addr_type) {
             case Value:
@@ -274,14 +275,16 @@ namespace mu {
         return "alias " + name->value();
     }
 
-    Function::Function(ast::Ident *name, const std::unordered_map<ast::Ident *, Local *> &params,
-                       ScopePtr param_scope_ptr, types::Type *type, ScopePtr p, ast::DeclPtr decl) :
-                       Entity(name, p, FunctionEntity, decl), params(params), param_scope_ptr(param_scope_ptr) {
+    Function::Function(ast::Ident *name, const std::vector<Local *> &params,
+                       ScopePtr params_scope_ptr, types::Type *type, ScopePtr p, ast::DeclPtr decl) :
+                       Entity(name, p, FunctionEntity, decl), params(params), param_scope_ptr(params_scope_ptr) {
         this->type = type;
-        param_scope = param_scope_ptr->as<ParameterScope>();
-        if(!param_scope) {
-            auto interp = Interpreter::get();
-            interp->fatal("Compiler Error: invalid parameter given to function entity");
+        if(params_scope_ptr) {
+            param_scope = params_scope_ptr->as<ParameterScope>();
+            if (!param_scope) {
+                auto interp = Interpreter::get();
+                interp->fatal("Compiler Error: invalid parameter given to function entity");
+            }
         }
     }
 
@@ -295,7 +298,7 @@ namespace mu {
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << "\tparams: [" << std::endl;
-        for(auto [id, e] : params) {
+        for(auto e : params) {
             e->debug_print(out);
         }
         out << ']' << std::endl;
@@ -308,6 +311,12 @@ namespace mu {
 
     std::string Function::str() {
         return "fn " + name->value();
+    }
+
+    void Function::set_param_info(const std::vector<Local *> &params, ScopePtr scope) {
+        this->params = params;
+        param_scope_ptr = scope;
+        param_scope = scope->as<ParameterScope>();
     }
 
     Type::Type(ast::Ident *name, types::Type *type, ScopePtr p, ast::DeclPtr decl) :

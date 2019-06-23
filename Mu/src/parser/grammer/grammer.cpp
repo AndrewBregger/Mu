@@ -25,7 +25,7 @@
 
 parse::Grammar::Grammar() {
     // register all of the parser
-
+    // if the same parser is used multiple times it can be created once and used in many places.
     register_parser(mu::Tkn_Identifier, new NameParser);
     register_parser(mu::Tkn_Self, new NameParser);
     register_parser(mu::Tkn_SelfType, new NameParser);
@@ -40,6 +40,7 @@ parse::Grammar::Grammar() {
     register_parser(mu::Tkn_FloatLiteral, new LiteralParser);
     register_parser(mu::Tkn_CharLiteral, new LiteralParser);
     register_parser(mu::Tkn_StringLiteral, new LiteralParser);
+    register_parser(mu::Tkn_Unit, new LiteralParser);
 
     register_parser(mu::Tkn_Nil, new LiteralParser);
     register_parser(mu::Tkn_True, new LiteralParser);

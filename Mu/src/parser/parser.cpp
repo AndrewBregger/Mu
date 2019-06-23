@@ -668,15 +668,18 @@ std::shared_ptr<ast::ProcedureSigniture> mu::Parser::parse_procedure_signiture()
     if(check(mu::Tkn_OpenBrace))
         generics = parse_generic_group();
     if(allow(mu::Tkn_OpenParen)) {
-        auto parameters = many<ast::DeclPtr>(
-                [this]() {
-                    return parse_procedure_parameter();
-                },
-                [this]() {
-                    return allow(mu::Tkn_Comma);
-                },
-                Parser::append<ast::DeclPtr>
-                );
+        std::vector<ast::DeclPtr> parameters;
+        if(!check(mu::Tkn_CloseParen)) {
+            parameters = many<ast::DeclPtr>(
+                    [this]() {
+                        return parse_procedure_parameter();
+                    },
+                    [this]() {
+                        return allow(mu::Tkn_Comma);
+                    },
+                    Parser::append<ast::DeclPtr>
+            );
+        }
         expect(mu::Tkn_CloseParen);
 
         auto ret = parse_spec(false);

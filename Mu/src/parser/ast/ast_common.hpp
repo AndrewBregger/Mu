@@ -150,6 +150,7 @@ namespace ast {
         ast_list_desc,
         ast_type_desc,
 
+        ast_ident_pattern,
         ast_ignore_pattern,
         ast_bind_pattern,
         ast_int_pattern,
