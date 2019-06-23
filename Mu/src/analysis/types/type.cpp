@@ -6,6 +6,7 @@
 #include "analysis/entity.hpp"
 #include "interpreter.hpp"
 #include <utility>
+#include <algorithm>
 
 mu::types::Type::Type(mu::types::TypeKind k, u64 sz, u64 align) : k(k), sz(sz), align(align) {
 
@@ -252,6 +253,14 @@ std::string mu::types::StructType::str() {
     return name->value();
 }
 
+u64 mu::types::StructType::get_index_of_member(mu::Entity *entity) {
+    auto iter = std::find(members.begin(), members.end(), entity);
+    if(iter == members.end())
+        return (u64) -1;
+    else
+        return std::distance(iter, members.begin());
+}
+
 mu::types::FunctionType::FunctionType(const std::vector<Type*>& params,
                                       mu::types::Type *ret) : Type(FunctType, 8, 8),
                                       params(params), ret(ret) {
@@ -344,7 +353,7 @@ std::string mu::types::TraitType::str() {
     return name->value();
 }
 
-mu::types::PolyStructType::PolyStructType(ast::Ident *name, const std::vector<Local *> &members,
+mu::types::PolyStructType::PolyStructType(ast::Ident *name, const std::vector<Entity *> &members,
                                           ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration) : Type(PolyStructureType, 0, 0),
                                           name(name), members(members), member_scope_ptr(member_scope_ptr),
                                           const_block_ptr(const_block_ptr), declaration(declaration) {
@@ -381,6 +390,14 @@ std::string mu::types::PolyStructType::str() {
     }
     s = s.substr(0, s.size() - 2) + "]";
     return s;
+}
+
+u64 mu::types::PolyStructType::get_index_of_member(mu::Entity *entity) {
+    auto iter = std::find(members.begin(), members.end(), entity);
+    if(iter == members.end())
+        return (u64) -1;
+    else
+        return std::distance(iter, members.begin());
 }
 
 mu::types::PolySumType::PolySumType(ast::Ident *name, const std::vector<TypeMember *> &members,

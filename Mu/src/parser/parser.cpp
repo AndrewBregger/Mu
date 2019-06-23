@@ -172,14 +172,9 @@ ast::ExprPtr mu::Parser::parse_expr() {
 }
 
 ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
-    auto token = current();
-    auto parser = grammar.get_prefix(token);
-    if(!parser) {
-        report(token.pos(), "unexpected token '%s'", token.get_string().c_str());
-        return nullptr;
-    }
 
-    auto expr = parser->lud(*this, token);
+    auto expr = parse_primary_expr();
+
     if(!expr)
         return expr;
 
@@ -193,6 +188,24 @@ ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
 
         if(!expr)
             return expr;
+    }
+
+    return expr;
+}
+
+ast::ExprPtr mu::Parser::parse_primary_expr() {
+    auto token = current();
+    auto parser = grammar.get_prefix(token);
+    if(!parser) {
+        report(token.pos(), "unexpected token '%s'", token.get_string().c_str());
+        return nullptr;
+    }
+
+    auto expr = parser->lud(*this, token);
+
+    if(check(mu::Tkn_Period)) {
+        auto parser = grammar.get_infix(current());
+        expr = parser->lud(*this, expr, current());
     }
 
     return expr;
@@ -271,8 +284,6 @@ ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::Ex
 }
 
 ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
-    auto save = save_state();
-
     auto token = current();
     ast::ExprPtr expr;
     if(check(mu::Tkn_Identifier))
@@ -280,11 +291,9 @@ ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
     else
         expr = ast::make_expr<ast::Self>(current().pos());
 
-    while(check(mu::Tkn_Period))
-        expr = parse_suffix(expr, false);
-
-    if(is_spec and check(mu::Tkn_OpenBracket)) {
-        report(token.pos(), "struct literals are not a valid type");
+    if(check(mu::Tkn_Period)) {
+        auto parser = grammar.get_infix(current());
+        expr = parser->lud(*this, expr, current());
     }
     return expr;
 }

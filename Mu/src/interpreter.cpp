@@ -156,6 +156,23 @@ InterpResult Interpreter::process(io::File *file) {
     mu::Typer typer(this);
     context.current_file = file;
 
+//    mu::Scanner scanner(this);
+//    scanner.init(file);
+//    scanner.advance();
+//
+//    while(true) {
+//        auto token = scanner.token();
+//        scanner.advance();
+//
+//        std::cout << token << std::endl;
+//
+//        if(token.kind() == mu::Tkn_Eof || token.kind() == mu::Tkn_Error) {
+//            break;
+//        }
+//    }
+//    return Success;
+
+
     auto module = parser.process(file);
 //    auto expr = parser.parse_expr();
 //    auto res = typer.resolve_expr(expr.get(), nullptr);
@@ -203,16 +220,11 @@ mu::ScopePtr Interpreter::get_prelude() {
 
 void Interpreter::remove_entity(mu::Entity* entity) {
     auto iter = entities.find(mu::EntityPtr(entity));
-    if(iter == entities.end()) {
-        for(auto& e : entities) {
-            if(e.get() == entity) {
+    if(iter == entities.end())
+        for(auto& e : entities)
+            if(e.get() == entity)
                 entities.erase(e);
-            }
-        }
-    }
-    else {
-        entities.erase(iter);
-    }
+    else entities.erase(iter);
 }
 
 bool Interpreter::equivalent_types(mu::types::Type *t1, mu::types::Type *t2) {

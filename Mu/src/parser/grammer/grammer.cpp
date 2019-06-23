@@ -84,7 +84,7 @@ parse::Grammar::Grammar() {
 
     register_parser(mu::Tkn_As, new CastParser);
 
-//    register_parser(mu::Tkn_Period, new PeriodParser);
+    register_parser(mu::Tkn_Period, new PeriodParser);
 //    register_parser(mu::Tkn_OpenParen, new CallParser);
 
 }

@@ -1,0 +1,19 @@
+Immediate Tasks:
+Function Resolution
+    Foriegn function resolution
+Type Compatability
+
+Next Tasks:
+Impl Block Resolution
+    How to attach the impl block to a structure such that
+    it gets resolved after the structure?
+Method call expressions
+Local resolution
+Trait resolution for structure
+Casting
+Control Flow (If, While, Loop)
+Preliminary String implementation
+Preliminary Iterator implementation
+For loops using the iterators.
+Range based for loops
+Simple Code Generation (LLVM / Custom VM)

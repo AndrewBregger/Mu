@@ -89,6 +89,8 @@ namespace mu {
 
         ast::ExprPtr parse_expr(i32 prec_min);
 
+        ast::ExprPtr parse_primary_expr();
+
         ast::ExprPtr parse_call(ast::ExprPtr& name, Token token, ast::ExprPtr operand = nullptr);
 
         ast::ExprPtr parse_expr_spec(bool is_spec);

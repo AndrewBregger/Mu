@@ -8,7 +8,16 @@
 #include "parser/ast/expr.hpp"
 
 ast::ExprPtr parse::PeriodParser::lud(mu::Parser &parser, ast::ExprPtr left, mu::Token op) {
-    return left;
+    auto expr = left;
+
+    while(parser.check(mu::Tkn_Period))
+        expr = parser.parse_suffix(expr, false);
+
+//    if(is_spec and check(mu::Tkn_OpenBracket)) {
+//        report(op.pos(), "struct literals are not a valid type");
+//        return ast::ExprPtr();
+//    }
+    return expr;
 //    parser.advance();
 //
 //    if(parser.check(mu::Tkn_Identifier)) {

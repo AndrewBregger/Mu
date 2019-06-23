@@ -4,6 +4,7 @@
 #include <fstream>
 #include <type_traits>
 
+#include "analysis/operand.hpp"
 #include "common.hpp"
 struct Atom;
 
@@ -184,7 +185,7 @@ namespace ast {
     struct AstNode {
        AstKind kind;
        mu::Pos position;
-       mu::types::Type* type;
+       mu::types::Type* type{nullptr};
 
        AstNode(AstKind kind, const mu::Pos& pos) : kind(kind), position(pos) {}
 
@@ -207,7 +208,8 @@ namespace ast {
     };
 
     struct Expr : public AstNode {
-        Expr(AstKind k, const mu::Pos& pos) : AstNode(k, pos) {}
+        mu::Operand operand;
+        Expr(AstKind k, const mu::Pos& pos) : AstNode(k, pos), operand(this) {}
 
         virtual ~Expr() = default;
 

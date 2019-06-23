@@ -388,11 +388,15 @@ namespace mu {
             inline ScopePtr get_scope() { return member_scope_ptr; }
             inline Entity* get_entity() { return declaration; }
             inline ast::Ident* get_name() { return name; }
+            inline u64 num_members() { return members.size(); }
+            inline Entity* get_member(u64 i) { return (i < num_members() ? members[i] : nullptr ); }
+
+            // gets the index of the entity
+            u64 get_index_of_member(Entity* entity);
 
             Type* base_type() override;
 
             std::string str() override;
-
 
         private:
             ast::Ident *name;
@@ -496,7 +500,7 @@ namespace mu {
 
         class PolyStructType : public Type {
         public:
-            PolyStructType(ast::Ident *name, const std::vector<Local *> &members,
+            PolyStructType(ast::Ident *name, const std::vector<Entity *> &members,
                            ScopePtr member_scope_ptr, ScopePtr const_block_ptr, Entity *declaration);
 
             virtual ~PolyStructType();
@@ -506,10 +510,19 @@ namespace mu {
             bool is_polymophic() override;
 
             std::string str() override;
+            inline ScopePtr get_scope() { return member_scope_ptr; }
+            inline Entity* get_entity() { return declaration; }
+            inline ast::Ident* get_name() { return name; }
+
+            inline u64 num_members() { return members.size(); }
+            inline Entity* get_member(u64 i) { return (i < num_members() ? members[i] : nullptr ); }
+
+            // gets the index of the entity
+            u64 get_index_of_member(Entity* entity);
 
         private:
             ast::Ident *name;
-            std::vector<Local *> members;
+            std::vector<Entity *> members;
 
             // both elements point to the same scope.
             MemberScope *member_scope{nullptr};

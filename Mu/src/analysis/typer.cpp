@@ -53,15 +53,6 @@ extern mu::types::Type* type_string;
 
 namespace mu {
 
-    Operand::Operand(mu::types::Type *type, ast::Expr *expr, AccessType access_type) : type(type),
-        expr(expr), access(access_type) {
-    }
-
-    Operand::Operand(mu::types::Type *type, ast::Expr *expr, const Val &val) : type(type), expr(expr),
-        val(val) {
-    }
-
-    Operand::Operand(ast::Expr* expr) : type(nullptr), expr(expr), error(true) {}
 
     Typer::Typer(Interpreter *interp) : interp(interp), prelude(interp->get_prelude()) {
     }
@@ -358,7 +349,19 @@ namespace mu {
         }
     }
 
+    std::tuple<types::FunctionType*, std::vector<Local*>> Typer::resolve_function_signiture(ast::ProcedureSigniture* sig) {
+        std::vector<Local*> parmas;
+        types::FunctionType* type;
+
+        for(auto param : sig->parameters) {
+
+        }
+
+        return std::make_tuple(type, params);
+    }
+
     Entity *Typer::resolve(Function *funct) {
+
         return funct;
     }
 
@@ -403,7 +406,7 @@ namespace mu {
                 // add padding
                 std::string s = "__pad" + std::to_string(num_paddings++);
                 auto pad = new_padding(s, padding);
-                entity_order.emplace_back(pad);
+//                entity_order.emplace_back(pad);
                 size += pad->get_type()->size();
 
             } 
@@ -425,7 +428,7 @@ namespace mu {
             auto pad = this->new_padding("__pad" + std::to_string(num_paddings), new_padding);
             pad->set_member(size);
 
-            entity_order.emplace_back(pad);
+//            entity_order.emplace_back(pad);
 
             size = new_size;
         }        
@@ -631,6 +634,8 @@ namespace mu {
         
     }
 
+    /// @NOTE: If a specific expression resolve function is
+    // called the operand of the expression must be set after the call.
     Operand Typer::resolve_expr(ast::Expr *expr, types::Type *expected_type) {
         Operand result(expr);
         switch(expr->kind) {
@@ -692,10 +697,13 @@ namespace mu {
             //     report(expr->pos(), "incompatable type: '%s' expected: '%s'",
             //         result.type->str().c_str(),
             //         expected_type->str().c_str());
-            //     return Operand(expr);
+            //     return operand(expr);
             // }
         }
+
         expr->type = result.type;
+        expr->operand = result;
+
         return result;
     }
 
@@ -961,6 +969,10 @@ namespace mu {
             }
             return op;
         }
+        else if(entity->is_type()) {
+            entity->resolve(this);
+            return Operand(entity->get_type(), expr, TypeAccess);
+        }
     }
 
     Operand Typer::resolve_name_generic_expr(ast::NameGeneric *expr) {
@@ -1098,7 +1110,94 @@ namespace mu {
             interp->fatal("Compiler Error: invalid ast");
         }
 
-        
+        auto type = resolve_spec(str->spec.get()); 
+
+        if(!type)
+            return Operand(expr);
+
+        if(!type->is_struct()) {
+            report(str->spec->pos(), "expecting a structure type, found '%s'", type->str().c_str());
+            return Operand(expr);
+        }
+
+        auto struct_type = type->as<types::StructType>();
+
+        auto scope = struct_type->get_scope();
+        auto num_members = struct_type->num_members();
+
+        // default initialize the list with the number of expected elements.
+        // if there are any that are not filled, they will be check to see if that field
+        // has a default initializer.
+        std::vector<Operand> resolved_members(num_members, Operand(expr));
+
+        u64 member_count = 0;
+       for(auto& member : str->members) {
+            switch(member->kind) {
+                case ast::ast_expr_binding: {
+                    auto bind = member->as<ast::BindingExpr>();
+                    auto name = bind->name;
+                    auto binded_expr = bind->expr.get();
+
+                    auto [member, valid] = scope->find(name);
+
+                    if(valid) {
+                        auto member_type = member->get_type();
+                        auto expr_type = resolve_expr(binded_expr, member_type);
+                        if(expr_type.error)
+                            return expr_type;
+
+                        auto index = struct_type->get_index_of_member(member);
+                        resolved_members[index] = expr_type;
+                    }
+                    else {
+                        report(name->pos, "struct '%s' does not have member '%s'",
+                            struct_type->get_name()->value().c_str(),
+                            name->value().c_str());
+                        return Operand(expr);
+                    }
+                } break;
+                default: {
+                    // gets the expected member of the struct considering where it is
+                    // in the expresion list.
+                    auto member_entity = struct_type->get_member(member_count);
+                    auto expr = resolve_expr(member.get(), member_entity->get_type());
+
+                    // if there was an error resolving the expression, the return an error operand.
+                    if(expr.error)
+                        return expr;
+
+                    resolved_members[member_count] = expr;
+                }
+            }
+           member_count++;
+       }
+
+       // now the member fields have been filled with the expressions given by the structure expression.
+
+       for(u64 i = 0; i < num_members; ++i) {
+
+           // this field was not filled by the expression
+           // checking for default.
+           if(resolved_members[i].error) {
+               auto i_member = struct_type->get_member(i);
+
+               // if this is null there is a bug in the compiler.
+               auto local_member = i_member->as<Local>();
+               if(!local_member) {
+                   interp->fatal("Non Local entity as member of structure");
+               }
+
+               if(local_member->is_initialized()) {
+                   resolved_members[i] = Operand(local_member->get_type(), nullptr, RValue);
+               }
+               else {
+                   report(expr->pos(), "field '%s' is not initialized", local_member->get_name()->value().c_str());
+                   return Operand(expr);
+               }
+           }
+       }
+
+       return Operand(struct_type, expr, RValue);
     }
 
     // Some of my spec resolution can be reduced to resolving expression.

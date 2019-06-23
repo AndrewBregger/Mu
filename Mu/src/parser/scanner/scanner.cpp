@@ -162,7 +162,8 @@ namespace mu {
             bump();
         }
 
-		if (check('.') and (nextCh and *nextCh != '.')) {
+		// we only want it to be a float if it is a complete float e.i 1.0
+		if (check('.') and (nextCh and *nextCh != '.' and isdigit(*nextCh))) {
             temp.push_back(*currentCh);
             bump();
 			while (currentCh && isdigit(*currentCh)) {
