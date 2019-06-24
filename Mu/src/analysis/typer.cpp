@@ -28,7 +28,6 @@
 #define pop_context_state(var) context.var = _old_##var;
 
 u64 next_multiple(u64 old, u64 multi_of) {
-    auto mod = old % multi_of;
     return old + multi_of - (old % multi_of);
 }
 
@@ -77,6 +76,15 @@ namespace mu {
         return valid;
     }
 
+    bool Typer::compatible_types(types::Type *expected, types::Type *given, bool casting) {
+        if(!casting and interp->equivalent_types(expected, given)) {
+            return true;
+        }
+        else {
+            // check for compatibility.
+            return false;
+        }
+    }
 
     Entity* Typer::search_active_scope(ast::Ident* name) {
         auto e = search_scope(active_scope(), name);
@@ -349,6 +357,9 @@ namespace mu {
         }
     }
 
+    // the generics will be resolved before. There this would be a child scope of the const block containing the generic names
+    // module_scope/function_scope -> const_block -> param_scope -- this is for polymorphic functions.
+    // module_scope/function_scope -> param_scope -- this is for concrete functions.
     std::tuple<std::vector<Local *>, bool> Typer::resolve_function_members(ast::ProcedureSigniture *sig) {
         std::vector<Local*> params;
 
@@ -400,9 +411,13 @@ namespace mu {
                             local->set_initialized();
                         }
 
+                        if(type->is_mutable())
+                            local->set_mutable();
+
                         // this needed but it is resetting the type.
                         local->set_parameter();
                         local->resolve_to(type);
+
 
                         params.push_back(local);
                     }
@@ -417,6 +432,48 @@ namespace mu {
                         report_str(param->pos(), "self must be the first parameter");
                         return std::make_tuple(params, false);
                     }
+                } break;
+                // because of how the parser works for the variadic parameters
+                // the name pattern must be an identifier.
+                case ast::ast_c_variadic: {
+                    auto cvar = param->as<ast::CVariadicParameter>();
+                    auto name =  cvar->pattern->as<ast::IdentPattern>();
+
+                    // it is set to unit type so there isnt a seg fault later on.
+                    auto local = interp->new_entity<Local>(name->name, type_unit, AddressType::Value, active_scope(), param);
+                    local->resolve_to(type_unit);
+
+                    add_entity(local);
+                    // by setting it to c-variadic we know to ignore the unit type
+                    local->set_cvariadic();
+                    local->set_parameter();
+
+                    params.push_back(local);
+                } break;
+                case ast::ast_variadic: {
+                    auto var = param->as<ast::VariadicParameter>();
+                    auto name =  var->pattern->as<ast::IdentPattern>();
+
+                    auto type = resolve_spec(var->type.get());
+
+                    if(type == nullptr and var->type->kind == ast::ast_infer_type) {
+                        report_str(var->type->pos(), "unable to infer typed variadic parameters (at this time)");
+                        is_error = true;
+                        break;
+                    }
+                    else if(!type) {
+                        is_error = true;
+                        break;
+                    }
+
+                    auto local = interp->new_entity<Local>(name->name, type, AddressType::Value, active_scope(), param);
+                    local->resolve_to(type);
+
+                    add_entity(local);
+                    local->set_typevariadic();
+                    local->set_parameter();
+
+                    params.push_back(local);
                 } break;
                 default:
                     interp->fatal("Invalid ast");
@@ -478,13 +535,18 @@ namespace mu {
                 report_str(foreign_name->pos, "function is foreign and has a body");
                 return nullptr;
             }
-            else
+            else {
+                push_context_state(function_body, true)
+
                 expr_ret = resolve_expr(function_decl->body.get(), ret_type);
+
+                pop_context_state(function_body)
+            }
         }
         else {
             funct->set_no_body();
             if(!funct->is_foreign() and !context.resolving_trait_body) {
-                report_str(foreign_name->pos, "function is missing a body. Not marked as foreign nor a trait function");
+                report_str(function_decl->pos(), "function is missing a body. Not marked as foreign nor a trait function");
                 return nullptr;
             }
             else {
@@ -833,12 +895,12 @@ namespace mu {
 
         if(expected_type) {
             // check for compatibility of the resulting type and the expected type.
-            // if(!compatable_types(expected_type, result.type)) {
-            //     report(expr->pos(), "incompatable type: '%s' expected: '%s'",
-            //         result.type->str().c_str(),
-            //         expected_type->str().c_str());
-            //     return operand(expr);
-            // }
+             if(!compatible_types(expected_type, result.type)) {
+                 report(expr->pos(), "incompitable type: '%s' expected: '%s'",
+                     result.type->str().c_str(),
+                     expected_type->str().c_str());
+                 return Operand(expr);
+             }
         }
 
         expr->type = result.type;
@@ -1087,7 +1149,7 @@ namespace mu {
         if(entity->is_local()) {
             auto local = entity->as<Local>();
             auto op = Operand(local->get_type(), expr, LValue);
-            if(!local->is_initialized()) {
+            if(!local->is_initialized() and !context.function_body and local->is_parameter()) {
                 report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
                 interp->message("'%s' is declared here:", expr->name->value().c_str());
                 interp->print_file_section(local->get_decl()->pos());

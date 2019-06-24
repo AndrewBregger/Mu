@@ -311,6 +311,7 @@ namespace mu {
             bool is_ptr() override { return true; }
             bool is_arithmetic() override { return true; }
 
+            bool is_mutable() override;
         private:
             Type* base;
         };
@@ -327,6 +328,7 @@ namespace mu {
 
             bool is_ref() override { return true; }
 
+            inline bool is_mutable() override;
         private:
             Type* base;
         };
@@ -371,6 +373,8 @@ namespace mu {
             std::string str() override;
 
             Type *base_type() override;
+
+            inline bool is_mutable() override { return true; }
 
         private:
             Type* type;

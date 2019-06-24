@@ -176,7 +176,7 @@ InterpResult Interpreter::process(io::File *file) {
     auto module = parser.process(file);
 //    auto expr = parser.parse_expr();
 //    auto res = typer.resolve_expr(expr.get(), nullptr);
-    if(!module)
+    if(!module or parser.has_error())
         return Error;
     else {
         auto modulefile = typer.resolve_main_module(module);

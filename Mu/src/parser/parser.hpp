@@ -31,6 +31,8 @@ namespace mu {
 
         bool advance(bool ignore_newline = false);
 
+        inline bool has_error() { return error_count > 0; }
+
         ast::ModuleFile* process(io::File* file);
 
         std::pair<Token, bool> expect(TokenKind tok);
@@ -52,6 +54,8 @@ namespace mu {
             if(r and !sync_after_error()) {
                 interp->fatal("unrecoverable syntax error");
             }
+
+            ++error_count;
         }
 
         inline mu::Token current() {
@@ -163,6 +167,8 @@ namespace mu {
         parse::Grammar grammar;
         Restriction restriction{Default};
         std::stack<Restriction> prev_res;
+
+        u64 error_count{0};
     };
 }
 

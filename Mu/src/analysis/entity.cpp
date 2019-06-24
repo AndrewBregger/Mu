@@ -213,6 +213,8 @@ namespace mu {
         out << "\tmutable: " << (is_mutable()? "true" : "false") << std::endl;
         out << "\tmember: " << (is_member() ? "true" : "false") << std::endl;
         out << "\tparameter: " << (is_parameter() ? "true" : "false") << std::endl;
+        out << "\tc-variadic: " << (is_cvariadic() ? "true" : "false") << std::endl;
+        out << "\ttype-variadic: " << (is_typevariadic() ? "true" : "false") << std::endl;
         out << "\taddressing: ";
         switch(addr_type) {
             case Value:

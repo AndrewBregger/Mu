@@ -49,6 +49,14 @@ namespace ast {
 
     SelfParameter::SelfParameter(const mu::Pos &pos) : Decl(ast_self_parameter, pos) {}
 
+    CVariadicParameter::CVariadicParameter(PatternPtr pattern, const mu::Pos &pos) : Decl(ast_c_variadic, pos),
+        pattern(std::move(pattern)) {
+    }
+
+    VariadicParameter::VariadicParameter(PatternPtr pattern, SpecPtr type, const mu::Pos &pos) : Decl(ast_variadic, pos),
+        pattern(std::move(pattern)), type(std::move(type)) {
+    }
+
     Structure::Structure(Ident *name, std::vector<SpecPtr> &bounds, std::vector<DeclPtr> &members, DeclPtr &generics,
                          Visibility vis, const mu::Pos &pos) : Decl(ast_structure, pos),
                                                                name(name), bounds(std::move(bounds)),

@@ -134,6 +134,10 @@ mu::types::Type *mu::types::Pointer::base_type() {
     return base;
 }
 
+bool mu::types::Pointer::is_mutable() {
+    return base->is_mutable();
+}
+
 mu::types::Reference::Reference(mu::types::Type* &base) : Type(ReferenceType, 8, 8), base(base) {
 }
 
@@ -147,9 +151,14 @@ mu::types::Type *mu::types::Reference::base_type() {
     return base;
 }
 
+bool mu::types::Reference::is_mutable() {
+    return base->is_mutable();
+}
+
 mu::types::Array::Array(mu::types::Type* &type, u64 count) : Type(ArrayType, count * type->size(), type->alignment()),
     type(type), count(count) {
 }
+
 
 mu::types::Array::~Array() = default;
 

@@ -2,6 +2,9 @@
 #include <vector>
 #include <algorithm>
 
+static std::string nl = "Newline";
+static std::string eof = "EOF";
+
 static const std::vector<std::string> token_strings = {
 #define TOKEN_KIND(n, str) str,
     TOKEN_KINDS
@@ -29,16 +32,26 @@ namespace mu {
     Token::~Token() {}
 
     const std::string& Token::get_string(TokenKind kind) {
+        switch (kind) {
+            case Tkn_NewLine:
+                return nl;
+            case Tkn_Eof:
+                return eof;
+            default:
+                break;
+        }
         return token_strings[kind];
     }
 
     const std::string &Token::get_string() {
         switch(kind()) {
             case Tkn_Identifier:
-                return ident->val->value;
+                return ident->value();
             case Tkn_NewLine: {
-                static std::string val = "Newline";
-                return val;
+                return nl;
+            }
+            case Tkn_Eof: {
+                return eof;
             }
             case Tkn_IntLiteral:
             case Tkn_FloatLiteral:

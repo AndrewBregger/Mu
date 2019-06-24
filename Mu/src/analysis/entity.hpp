@@ -174,6 +174,9 @@ namespace mu {
         IsMember = 8,
         IsParameter = 16,
         InheritVisibility = 32,
+        CVariadic = 64,
+        TypeVariadic = 128,
+        PolyVariadic = 256,
     };
 
     class Local : public Entity {
@@ -196,11 +199,18 @@ namespace mu {
         inline bool is_member() { return flags & IsMember; }
         inline bool is_parameter() { return flags & IsParameter; }
         inline bool is_visibility_inherited() { return flags & InheritVisibility; }
+        inline bool is_cvariadic() { return flags & CVariadic; }
+        inline bool is_typevariadic() { return flags & TypeVariadic; }
+        inline bool is_polyvariadic() { return flags & PolyVariadic; }
 
         inline void set_mutable() { flags |= Mutable; }
         inline void set_initialized() { flags |= Initialized; }
         inline void set_visable() { flags |= Visible; }
         inline void set_parameter() { flags |= IsParameter; }
+
+        inline void set_cvariadic()    { flags |= CVariadic; }
+        inline void set_typevariadic() { flags |= TypeVariadic; }
+        inline void set_polyvariadic() { flags |= PolyVariadic; }
 
         inline void set_inherit_visibility() { flags |- InheritVisibility; }
 

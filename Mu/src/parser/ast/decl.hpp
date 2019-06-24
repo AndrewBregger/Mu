@@ -108,6 +108,22 @@ namespace ast {
         virtual ~SelfParameter() = default;
     };
 
+    struct CVariadicParameter : public Decl {
+        PatternPtr pattern;
+        CVariadicParameter(PatternPtr pattern, const mu::Pos& pos);
+
+        virtual ~CVariadicParameter() = default;
+    };
+
+    struct VariadicParameter : public Decl {
+        PatternPtr pattern;
+        SpecPtr type;
+
+        VariadicParameter(PatternPtr pattern, SpecPtr type, const mu::Pos& pos);
+
+        virtual ~VariadicParameter() = default;
+    };
+
     struct Structure : public Decl {
         Ident* name{nullptr};
         std::vector<SpecPtr> bounds;

@@ -131,6 +131,9 @@ namespace ast {
         ast_member_variable,
         ast_procedure_parameter,
         ast_self_parameter,
+        ast_c_variadic,
+        ast_variadic,
+
 
         ast_trait_element_type,
 

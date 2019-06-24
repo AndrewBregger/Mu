@@ -42,6 +42,9 @@ namespace mu {
 
             Local* new_padding(const std::string& name, u32 size);
 
+            // check if the given type is compatible with the expected.
+            bool compatible_types(types::Type *expected, types::Type *given, bool casting = false);
+
             /*-----------------------Module Handling-------------------------*/
 
             // processes the main file, it must have main function.
@@ -180,6 +183,7 @@ namespace mu {
                 ScopePtr current_scope{nullptr};  // the current scope being resolved.
                 bool allow_incomplete_types{false};     // this is to allow incomplete pointer or references (ie. in linked lists).
                 bool resolving_trait_body{false};       // resolving trait body, this means that function do not have to have a body.
+                bool function_body{false};              // resolving a function body, this is to be used when resolving parameter names.
             };
 
             void increment_error();

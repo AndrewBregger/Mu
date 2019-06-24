@@ -426,6 +426,8 @@ ast::DeclPtr mu::Parser::parse_decl(mu::Token token, bool toplevel) {
 
     auto vis = parse_visability();
 
+    token = current();
+
     switch(token.kind()) {
         case mu::Tkn_Identifier: {
             auto [name, _] = expect(mu::Tkn_Identifier);
@@ -618,6 +620,7 @@ ast::AttributeList mu::Parser::parse_attributes() {
                         }
                         if(allow(mu::Tkn_OpenParen)) {
                             auto [value, exp] = expect(mu::Tkn_StringLiteral);
+                            expect(mu::Tkn_CloseParen);
                             if(exp) {
                                 return ast::Attribute(token.ident, value.str);
                             }
@@ -634,7 +637,6 @@ ast::AttributeList mu::Parser::parse_attributes() {
                     },
                     Parser::append_value<ast::Attribute>
                 );
-        expect(mu::Tkn_CloseParen);
         return ast::AttributeList(attributes);
     }
     else
@@ -650,16 +652,56 @@ ast::DeclPtr mu::Parser::parse_procedure_parameter() {
     else {
         auto pattern = parse_pattern(false);
         auto pos = pattern->pos();
-        auto type = parse_spec(false);
-        pos.extend(type->pos());
-        ast::ExprPtr init;
 
-        if (allow(mu::Tkn_Equal)) {
-            init = parse_expr();
-            pos.extend(init->pos());
+        if(pattern->kind != ast::ast_ident_pattern) {
+            report(pattern->pos(), "invalid name for variadic parameter, must be identifier");
+            return nullptr;
         }
 
-        return ast::make_decl<ast::ProcedureParameter>(pattern, type, init, pos);
+        if(check(mu::Tkn_PeriodPeriodPeriod)) {
+            auto token = current();
+            advance();
+
+            pos.extend(token.pos());
+
+
+            if (check(mu::Tkn_Equal)) {
+                report(current().pos(), "default variadic parameters are not allowed");
+                return nullptr;
+            }
+
+            return ast::make_decl<ast::CVariadicParameter>(pattern, pos);
+        }
+
+
+        auto type = parse_spec(false);
+
+        if(check(mu::Tkn_PeriodPeriodPeriod)) {
+            auto token = current();
+            advance();
+
+            pos.extend(token.pos());
+
+            // typed variadic, polymorphic variadics are check in the typer.
+            if (check(mu::Tkn_Equal)) {
+                report(current().pos(), "default variadic parameters are not allowed");
+                return nullptr;
+            }
+
+            return ast::make_decl<ast::VariadicParameter>(pattern, type, pos);
+        }
+        else {
+            pos.extend(type->pos());
+            ast::ExprPtr init;
+
+            if (allow(mu::Tkn_Equal)) {
+                init = parse_expr();
+                pos.extend(init->pos());
+            }
+
+            return ast::make_decl<ast::ProcedureParameter>(pattern, type, init, pos);
+
+        }
     }
 }
 
@@ -669,6 +711,7 @@ std::shared_ptr<ast::ProcedureSigniture> mu::Parser::parse_procedure_signiture()
         generics = parse_generic_group();
     if(allow(mu::Tkn_OpenParen)) {
         std::vector<ast::DeclPtr> parameters;
+        bool error = false;
         if(!check(mu::Tkn_CloseParen)) {
             parameters = many<ast::DeclPtr>(
                     [this]() {
@@ -677,13 +720,35 @@ std::shared_ptr<ast::ProcedureSigniture> mu::Parser::parse_procedure_signiture()
                     [this]() {
                         return allow(mu::Tkn_Comma);
                     },
-                    Parser::append<ast::DeclPtr>
+                    [&error, this](std::vector<ast::DeclPtr>& result, ast::DeclPtr res) {
+                        if(res) {
+
+                            if(!result.empty()) {
+                                auto& last = result.back();
+                                switch(last->kind) {
+                                    case ast::ast_variadic:
+                                    case ast::ast_c_variadic:
+                                        report(res->pos(), "variadic parameter must the last parameter of a function signature");
+                                        interp->message("variadic parameter declared here:");
+                                        interp->print_file_section(last->pos());
+                                        error = true;
+                                    default:
+                                        break;
+                                }
+                            }
+                            Parser::append<ast::DeclPtr>(result, res);
+                        }
+                        else
+                            error = true;
+                    }
             );
         }
         expect(mu::Tkn_CloseParen);
 
+
         auto ret = parse_spec(false);
-        return std::make_shared<ast::ProcedureSigniture>(parameters, ret, generics);
+        if(error) return nullptr;
+        else return std::make_shared<ast::ProcedureSigniture>(parameters, ret, generics);
     }
     else {
         report(current().pos(), "expecting '(' or '[' in procedure declaration");
@@ -712,6 +777,8 @@ ast::DeclPtr mu::Parser::parse_procedure(ast::Ident *name, const ast::AttributeL
 //        modifiers.push_back(ast::Mod_Private);
 
     auto sig = parse_procedure_signiture();
+    if(!sig)
+        return nullptr;
 
     if(sig->generics)
         pos.extend(sig->generics->pos());

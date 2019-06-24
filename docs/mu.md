@@ -43,11 +43,43 @@ apply: (f (f32, f32)->f32, x f32, y f32) f32 = f(x, y)
 apply(add, 1.0, 2.0)
 ```
 #### Function Attributes
+
 ```
-@foriegn("printf"), calling("std")
-printf: [T...](fmt: string, T... args)
+@foreign("printf"), abi("C")
+printf: (fmt *u8, args ...)
+
+// Attributes can be stacked (Not implemented by the parser at the moment)
+@foreign("printf")
+@abi("C")
+printf: (fmt *u8, args ...)
 ```
 #### Function Modifiers
+
+A function can be a modifier before the signiture. For now, this is limited to just inlining. In this future this could
+be used to implement the parallel features, but this could also be done the attributes.
+
+```
+foo: inline () = 0.0
+```
+
+#### Variadic Parameters
+
+Mu will support C-like variadics to allow easy interfacing with C. This will be done with '...' as a parameter type
+in the function signiture. See the printf example above.
+
+The language will also have native variadics. There are two obvious flavors of this, variadic of the same type and
+variadic with different types. The syntax is shown below.
+
+```
+// Same type variadics.
+
+foo: (args int...) = ....
+
+// polymorphic variadics.
+foo: [T...](args T...) = ....
+
+```
+
 
 ### Type Declaration
 
