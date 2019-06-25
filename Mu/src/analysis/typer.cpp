@@ -507,9 +507,16 @@ namespace mu {
             return nullptr;
         }
 
+        bool is_variadic = false;
+
         for(auto e : params) {
+            if(e->is_cvariadic() || e->is_typevariadic() || e->is_polyvariadic())
+                is_variadic = true;
             param_types.emplace_back(e->get_type());
         }
+
+        if(is_variadic)
+            funct->set_variadic();
 
         funct->set_param_info(params, params_scope);
 
@@ -1331,7 +1338,6 @@ namespace mu {
         // if there are any that are not filled, they will be check to see if that field
         // has a default initializer.
         std::vector<Operand> resolved_members(num_members, Operand(expr));
-
         u64 member_count = 0;
        for(auto& member : str->members) {
             switch(member->kind) {
@@ -1400,6 +1406,122 @@ namespace mu {
        }
 
        return Operand(struct_type, expr, RValue);
+    }
+
+    bool Typer::resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals) {
+        auto type = fn->get_type();
+        auto scope_param = fn->get_param_scope();
+        auto num_params = n->num_params();
+
+        std::vector<Operand> resolved_actuals(num_params, Operand(nullptr));
+        u64 actual_count = 0;
+        for(auto& actual : actuals) {
+            switch(actual->kind) {
+                case ast::ast_expr_binding: {
+                    auto bind = actual->as<ast::BindingExpr>();
+                    auto name = bind->name;
+                    auto binded_expr = bind->expr.get();
+
+                    auto [param, valid] = scope_param->find(name);
+
+                    if(valid) {
+                        auto param_type = member->get_type();
+                        auto expr_type = resolve_expr(binded_expr, param_type);
+
+                        if(expr_type.error)
+                            return false;
+
+                        auto index = fn->get_index_of_param(param->as<Local>());
+                        resolved_actuals[index] = expr_type;
+                    }
+                    else {
+                        report(name->pos, "struct '%s' does not have member '%s'",
+                               struct_type->get_name()->value().c_str(),
+                               name->value().c_str());
+                        return false;
+                    }
+                } break;
+                default: {
+                    // gets the expected member of the struct considering where it is
+                    // in the expresion list.
+                    auto param_entity = fn->get_param(actual_count);
+                    auto expr = resolve_expr(actual.get(), param_entity->get_type());
+
+                    // if there was an error resolving the expression, the return an error operand.
+                    if(expr.error)
+                        return false;
+
+                    resolved_actuals[actual_count] = expr;
+                }
+            }
+            actual_count++;
+        }
+
+        // now the member fields have been filled with the expressions given by the structure expression.
+
+        for(u64 i = 0; i < num_params; ++i) {
+
+            // this field was not filled by the expression
+            // checking for default.
+            if(resolved_actuals[i].error) {
+                auto i_param = fn->get_param(i);
+
+                // if this is null there is a bug in the compiler.
+                auto local_param = i_param->as<Local>();
+                if(!local_param) {
+                    interp->fatal("Non Local entity as member of structure");
+                }
+
+                if(local_param->is_initialized()) {
+                    resolved_actuals[i] = Operand(local_member->get_type(), nullptr, RValue);
+                }
+                else {
+                    report(expr->pos(), "field '%s' is not initialized", local_member->get_name()->value().c_str());
+                    return Operand(expr);
+                }
+            }
+        }
+
+        return false;
+    }
+
+    Operand Typer::resolve_call_or_curry(ast::Call *expr) {
+        auto function = resolve_expr(expr->name.get());
+        ast::Ident* name = nullptr;
+        if(function.error)
+            return function;
+
+        auto fn_type = function.type;
+
+        if(fn_type->is_function()) {
+            if(expr->kind == ast::ast_name)
+                name = expr->name->as<ast::Name>()->name;
+            else if(expr->kind == ast::ast_name_generic)
+                name = expr->name->as<ast::NameGeneric>()->name;
+            else {
+                // do someting else...
+                interp->message("... What should happen here");
+                return Operand(expr);
+            }
+
+            auto fn = search_active_scope(name);
+            if(fn->is_function()) {
+                auto fn_entity = fn->as<Function>();
+
+                auto valid = resolve_call_actuals(fn_entity, expr->actuals);
+            }
+            else {
+                interp->message("Compiler Error: found entity is not a function");
+                return Operand(expr);
+            }
+        }
+        else {
+            report(expr->pos(), "attempting to call a non-function type, type found: '%s'", fn_type->str().c_str());
+            function.error = true;
+            return function;
+        }
+
+        return Operand(nullptr, nullptr, LValue);
     }
 
     // Some of my spec resolution can be reduced to resolving expression.

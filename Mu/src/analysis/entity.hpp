@@ -319,6 +319,7 @@ namespace mu {
         ForeignFunction = 1,
         InlineFunction = 2,
         NoBody = 4,
+        Variadic = 8,
     };
 
     class Function : public Entity {
@@ -338,19 +339,28 @@ namespace mu {
 
         void debug_print(std::ostream &out) override;
 
+        inline ScopePtr get_param_scope() { return param_scope_ptr; }
+        inline u64 num_params() { return params.size(); }
+
         inline bool is_foreign() { return flags & ForeignFunction; }
         inline bool is_inline() { return flags & InlineFunction; }
         inline bool no_body() { return flags & NoBody; }
+        inline bool is_variadic() { return flags & Variadic; }
         inline void set_foreign(const std::string &name) {
             foreign_name = name;
             flags |= ForeignFunction;
         }
 
+        inline void set_variadic() { flags |= Variadic; }
         inline void set_inline() { flags |= InlineFunction; }
         inline void set_no_body() { flags |= NoBody; }
         const std::string& get_foreign_name() { return foreign_name; }
 
+        Local* get_param(u64 i);
+
         void set_param_info(const std::vector<Local*>& params, ScopePtr scope);
+
+        u64 get_index_of_param(Local* param);
 
 
     private:

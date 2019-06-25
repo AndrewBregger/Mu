@@ -311,6 +311,14 @@ namespace mu {
        return typer->resolve(this);
     }
 
+    u64 Function::get_index_of_param(Local *param) {
+        auto iter = std::find(params.begin(), params.end(), param);
+        if(iter == params.end())
+            return (u64) -1;
+        else
+            return std::distance(iter, params.begin());
+    }
+
     std::string Function::str() {
         return "fn " + name->value();
     }
@@ -319,6 +327,11 @@ namespace mu {
         this->params = params;
         param_scope_ptr = scope;
         param_scope = scope->as<ParameterScope>();
+    }
+
+    Local *Function::get_param(u64 i) {
+        if(i >= num_params()) return nullptr;
+        else return params[i];
     }
 
     Type::Type(ast::Ident *name, types::Type *type, ScopePtr p, ast::DeclPtr decl) :
