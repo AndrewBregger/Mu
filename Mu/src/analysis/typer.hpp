@@ -135,7 +135,7 @@ namespace mu {
             // this is for when a struct overloads a unary operator
             Operand resolve_unary_overload(TokenKind op, Operand operand, ast::Expr *expr, types::Type *expected_type);
 
-            bool resolve_call_actuals(Function* fn, const std::vector<ast::ExprPtr>& actuals);
+            bool resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos);
 
             Operand resolve_call_or_curry(ast::Call* expr);
 

@@ -1408,14 +1408,17 @@ namespace mu {
        return Operand(struct_type, expr, RValue);
     }
 
-    bool Typer::resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals) {
+    bool Typer::resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
         auto type = fn->get_type();
         auto scope_param = fn->get_param_scope();
-        auto num_params = n->num_params();
+        // if the function is variadic then ignore the last one for now.
+        auto num_params = fn->num_params() - (fn->is_variadic() ? 1 : 0);
 
         std::vector<Operand> resolved_actuals(num_params, Operand(nullptr));
         u64 actual_count = 0;
-        for(auto& actual : actuals) {
+        for(u32 i = 0; i < num_params; ++i) {
+            ast::Expr* actual = actuals[i].get();
+
             switch(actual->kind) {
                 case ast::ast_expr_binding: {
                     auto bind = actual->as<ast::BindingExpr>();
@@ -1425,18 +1428,26 @@ namespace mu {
                     auto [param, valid] = scope_param->find(name);
 
                     if(valid) {
-                        auto param_type = member->get_type();
+                        auto param_type = param->get_type();
                         auto expr_type = resolve_expr(binded_expr, param_type);
 
                         if(expr_type.error)
                             return false;
 
                         auto index = fn->get_index_of_param(param->as<Local>());
-                        resolved_actuals[index] = expr_type;
+                        if(resolved_actuals[index].error)
+                            resolved_actuals[index] = expr_type;
+                        else {
+                            // attempting to resolve the same parameter
+                            report(name->pos, "attempting to rebind a parameter '%s'", name->value().c_str());
+                            interp->message("originally bound here:");
+                            interp->print_file_section(resolved_actuals[index].expr->pos());
+                            return false;
+                        }
                     }
                     else {
-                        report(name->pos, "struct '%s' does not have member '%s'",
-                               struct_type->get_name()->value().c_str(),
+                        report(name->pos, "function '%s' does not have parameter '%s'",
+                               fn->get_name()->value().c_str(),
                                name->value().c_str());
                         return false;
                     }
@@ -1445,20 +1456,32 @@ namespace mu {
                     // gets the expected member of the struct considering where it is
                     // in the expresion list.
                     auto param_entity = fn->get_param(actual_count);
-                    auto expr = resolve_expr(actual.get(), param_entity->get_type());
+                    auto expr = resolve_expr(actual, param_entity->get_type());
 
                     // if there was an error resolving the expression, the return an error operand.
                     if(expr.error)
                         return false;
 
-                    resolved_actuals[actual_count] = expr;
+                    if(resolved_actuals[actual_count].error) {
+                        resolved_actuals[actual_count] = expr;
+                    }
+                    else {
+                        // attempting to resolve the same parameter
+                        report(actual->pos(), "attempting to positionally rebind a parameter '%s'",
+                                fn->get_param(actual_count)->get_name()->value().c_str());
+                        interp->message("originally bound here:");
+                        interp->print_file_section(resolved_actuals[actual_count].expr->pos());
+                        return false;
+                    }
                 }
             }
+
             actual_count++;
         }
 
         // now the member fields have been filled with the expressions given by the structure expression.
 
+        // all parameters have been filled
         for(u64 i = 0; i < num_params; ++i) {
 
             // this field was not filled by the expression
@@ -1468,21 +1491,22 @@ namespace mu {
 
                 // if this is null there is a bug in the compiler.
                 auto local_param = i_param->as<Local>();
-                if(!local_param) {
-                    interp->fatal("Non Local entity as member of structure");
-                }
 
                 if(local_param->is_initialized()) {
-                    resolved_actuals[i] = Operand(local_member->get_type(), nullptr, RValue);
+                    resolved_actuals[i] = Operand(local_param->get_type(), nullptr, RValue);
                 }
                 else {
-                    report(expr->pos(), "field '%s' is not initialized", local_member->get_name()->value().c_str());
-                    return Operand(expr);
+                    report(call_pos, "field '%s' is not initialized", local_param->get_name()->value().c_str());
+                    return false;
                 }
             }
         }
+        // now check the variadic parameter
+        // how could resolved_actuals be used later one?
+        // right now it is a book keeping structure that is discarded when the function returns.
+        // the values are stored in the ast though..
 
-        return false;
+        return true;
     }
 
     Operand Typer::resolve_call_or_curry(ast::Call *expr) {
@@ -1508,7 +1532,7 @@ namespace mu {
             if(fn->is_function()) {
                 auto fn_entity = fn->as<Function>();
 
-                auto valid = resolve_call_actuals(fn_entity, expr->actuals);
+                auto valid = resolve_call_actuals(fn_entity, expr->actuals, expr->pos());
             }
             else {
                 interp->message("Compiler Error: found entity is not a function");

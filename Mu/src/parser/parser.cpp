@@ -212,10 +212,9 @@ ast::ExprPtr mu::Parser::parse_primary_expr() {
 }
 
 ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::ExprPtr operand) {
-    advance();
     std::vector<ast::SpecPtr> type_parameters;
     std::vector<ast::ExprPtr> actuals;
-    auto pos = name->pos();
+    auto pos = (name ? name->pos() : operand->pos());
 
     if(allow(mu::Tkn_OpenBrace)) {
         type_parameters = many<ast::SpecPtr>(
@@ -235,10 +234,10 @@ ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::Ex
         expect(mu::Tkn_CloseBrace);
     }
 
-    if(check(mu::Tkn_OpenParen)) {
+    if(allow(mu::Tkn_OpenParen)) {
         actuals = many<ast::ExprPtr>([this]() {
             if(check(mu::Tkn_Identifier)) {
-                if(check(mu::Tkn_Colon)) {
+                if(peek().kind() == mu::Tkn_Colon) {
                     auto ident = current();
                     auto pos = ident.pos();
 
@@ -256,14 +255,22 @@ ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::Ex
             auto expr = parse_expr();
             return expr;
         }, [this]() {
-            return !check(mu::Tkn_CloseParen);
-        }, [&pos](auto& results, ast::ExprPtr expr) {
-            Parser::append<ast::ExprPtr>(results, expr);
-            pos.extend(expr->pos());
+            remove_newlines();
+            bool val = check(mu::Tkn_Comma);
+            remove_newlines();
+            return val;
+        }, [&pos, this](auto& results, ast::ExprPtr expr) {
+            if(expr) {
+                Parser::append<ast::ExprPtr>(results, expr);
+                pos.extend(expr->pos());
+            }
+            else {
+                report(current().pos(), "expecting an expression following ','");
+            }
         });
     }
     else {
-        report(current().pos(), "expecting '('");
+        report(current().pos(), "expecting '(' or '[', found '%s'",current().get_string().c_str());
         return operand;
     }
 
@@ -290,6 +297,11 @@ ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
         expr = parse_name();
     else
         expr = ast::make_expr<ast::Self>(current().pos());
+
+    if(check(mu::Tkn_OpenParen) or check(mu::Tkn_OpenBrace)) {
+        ast::ExprPtr temp; // this is stupid
+        expr = parse_call(temp, current(), expr);
+    }
 
     if(check(mu::Tkn_Period)) {
         auto parser = grammar.get_infix(current());
@@ -788,7 +800,12 @@ ast::DeclPtr mu::Parser::parse_procedure(ast::Ident *name, const ast::AttributeL
 
     if(allow(mu::Tkn_Equal) || check(mu::Tkn_OpenBracket)) {
         auto body = parse_expr();
-        pos.extend(body->pos());
+        if(!body) {
+            report(current().pos(), "Expecting primary expression");
+            return nullptr;
+        }
+        else
+            pos.extend(body->pos());
         return ast::make_decl<ast::Procedure>(name, sig, body, attributes, modifiers, vis, pos);
     }
     else {
