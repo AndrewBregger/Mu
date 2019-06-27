@@ -107,6 +107,9 @@ namespace mu {
 
             std::vector<Local*> resolve_member_variable(ast::DeclPtr decl_ptr);
 
+            // resolves an expression that is expected to return an entity.
+            // Null if it fails.
+            Entity* resolve_expr_to_entity(ast::Expr* expr);
             /*--------------------Expression Handling-----------------------*/
 
             // resolves an expression with an expected type.
@@ -143,10 +146,10 @@ namespace mu {
             Operand resolve_name(ast::Expr* expr);
 
             // resolves a name, when used in an expression
-            Operand resolve_name_expr(ast::Name* expr);
+            Entity * resolve_name_expr(ast::Name *expr);
 
             // resolves a name with type parameters.
-            Operand resolve_name_generic_expr(ast::NameGeneric* expr);
+            std::tuple<Operand, Entity *> resolve_name_generic_expr(ast::NameGeneric *expr);
 
             Operand resolve_cast(ast::Cast* expr);
 

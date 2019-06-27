@@ -1,4 +1,5 @@
 #include "expr.hpp"
+#include "renderer.hpp"
 
 namespace ast {
 
@@ -219,4 +220,40 @@ namespace ast {
 
         Assign::Assign(mu::TokenKind op, ExprPtr& lvalue, ExprPtr& rvalue, const mu::Pos& pos) :
                 Expr(ast_assign, pos), op(op), lvalue(std::move(lvalue)), rvalue(std::move(rvalue)) {}
+
+        void Name::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void NameGeneric::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Integer::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Float::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Char::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Str::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Bool::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Nil::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Unit::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Self::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Lambda::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void TupleExpr::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void List::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Map::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Unary::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Binary::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Accessor::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void TupleAcessor::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Method::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Cast::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Block::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Call::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void If::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void While::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void MatchArm::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Match::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void For::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Defer::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Return::renderer(AstRenderer* renderer) { renderer->render(this); }
+        // void Break::renderer(AstRenderer* renderer) { renderer->render(this); }
+        // void Continue::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void BindingExpr::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void StructExpr::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Range::renderer(AstRenderer* renderer) { renderer->render(this); }
+        void Assign::renderer(AstRenderer* renderer) { renderer->render(this); }
 }

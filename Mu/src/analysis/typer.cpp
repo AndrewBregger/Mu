@@ -544,10 +544,12 @@ namespace mu {
             }
             else {
                 push_context_state(function_body, true)
-
                 expr_ret = resolve_expr(function_decl->body.get(), ret_type);
-
                 pop_context_state(function_body)
+
+                if(expr_ret.error) {
+                    return nullptr;
+                }
             }
         }
         else {
@@ -564,9 +566,6 @@ namespace mu {
             }
         }
 
-        if(expr_ret.error) {
-            return nullptr;
-        }
 
         pop_scope();
 
@@ -843,6 +842,20 @@ namespace mu {
         
     }
 
+    Entity *Typer::resolve_expr_to_entity(ast::Expr *expr) {
+        switch(expr->kind) {
+            case ast::ast_name:
+                return resolve_name_expr(expr->as<ast::Name>());
+            case ast::ast_name_generic: {
+                auto [op, entity] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
+                return entity;
+            }
+            default:
+                resolve_expr(expr);
+                return nullptr;
+        }
+    }
+
     /// @NOTE: If a specific expression resolve function is
     // called the operand of the expression must be set after the call.
     Operand Typer::resolve_expr(ast::Expr *expr, types::Type *expected_type) {
@@ -895,6 +908,9 @@ namespace mu {
                 break;
             case ast::ast_struct_expr:
                 result = resolve_struct_expr(expr);
+                break;
+            case ast::ast_call:
+                result = resolve_call_or_curry(expr->as<ast::Call>());
                 break;
             default:
                 break;
@@ -1137,55 +1153,62 @@ namespace mu {
 
     Operand Typer::resolve_name(ast::Expr *expr) {
         switch(expr->kind) {
-            case ast::ast_name:
-                return resolve_name_expr(expr->as<ast::Name>());
-            case ast::ast_name_generic:
-                return resolve_name_generic_expr(expr->as<ast::NameGeneric>());
+            case ast::ast_name: {
+                auto name = expr->as<ast::Name>();
+                auto entity = resolve_name_expr(name);
+                if(entity->is_variable()) {
+                    bool is_initialized = false;
+                    switch(entity->kind()) {
+                        case GlobalEntity:
+                            is_initialized = entity->as<Global>()->is_initialized();
+                            break;
+                        case LocalEntity:
+                            is_initialized = entity->as<Local>()->is_initialized() || context.function_body;
+                            break;
+                        case ConstantEntity:
+                            is_initialized = true;
+                            break;
+                        default:
+                            return Operand(expr);
+                    }
+                    if(!is_initialized) {
+                        report(expr->pos(), "use of an uninitialized variable '%s'", name->name->value().c_str());
+                        interp->message("'%s' is declared here:", name->name->value().c_str());
+                        interp->print_file_section(entity->get_decl()->pos());
+                        return Operand(expr);
+                    }
+                    return Operand(entity->get_type(), expr, LValue);
+                }
+                else {
+                    switch(entity->kind()) {
+                        case TypeEntity:
+                        case ModuleEntity:
+                        case AliasEntity:
+                            return Operand(entity->get_type(), expr, TypeAccess);
+                        case FunctionEntity:
+                            return Operand(entity->get_type(), expr, FunctionAccess);
+                        default:
+                            return Operand(expr);
+                    }
+                }
+            }
+            case ast::ast_name_generic: {
+                interp->message("Generics are not implemented at this time");
+               auto [op, entity] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
+               return op;
+            }
             default:
                 interp->fatal("Invalid name expression");
                 return Operand(expr);
         }
     }
 
-    Operand Typer::resolve_name_expr(ast::Name *expr) {
-        auto entity = search_active_scope(expr->name);
-
-        if(!entity)
-            return Operand(expr);
-
-        if(entity->is_local()) {
-            auto local = entity->as<Local>();
-            auto op = Operand(local->get_type(), expr, LValue);
-            if(!local->is_initialized() and !context.function_body and local->is_parameter()) {
-                report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
-                interp->message("'%s' is declared here:", expr->name->value().c_str());
-                interp->print_file_section(local->get_decl()->pos());
-                op.error = true;
-            }
-            return op;
-        }
-        else if(entity->is_global()) {
-            auto global = entity->as<Global>(); 
-            // resolve the entity anyway.
-            global->resolve(this);
-            auto op = Operand(global->get_type(), expr, LValue);
-            if(!global->is_initialized()) {
-                report(expr->pos(), "use of an uninitialized variable '%s'", expr->name->value().c_str());
-                interp->message("'%s' is declared here:", expr->name->value().c_str());
-                // interp->out_stream() << "\t";
-                interp->print_file_section(global->get_decl()->pos());
-                op.error = true;
-            }
-            return op;
-        }
-        else if(entity->is_type()) {
-            entity->resolve(this);
-            return Operand(entity->get_type(), expr, TypeAccess);
-        }
+    Entity * Typer::resolve_name_expr(ast::Name *expr) {
+        return search_active_scope(expr->name);
     }
 
-    Operand Typer::resolve_name_generic_expr(ast::NameGeneric *expr) {
-        return Operand(nullptr, nullptr, LValue);
+    std::tuple<Operand, Entity *> Typer::resolve_name_generic_expr(ast::NameGeneric *expr) {
+        return std::make_tuple(Operand(expr), (Entity*) nullptr);
     }
 
 
@@ -1409,7 +1432,7 @@ namespace mu {
     }
 
     bool Typer::resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
-        auto type = fn->get_type();
+//        auto type = fn->get_type();
         auto scope_param = fn->get_param_scope();
         // if the function is variadic then ignore the last one for now.
         auto num_params = fn->num_params() - (fn->is_variadic() ? 1 : 0);
@@ -1510,39 +1533,24 @@ namespace mu {
     }
 
     Operand Typer::resolve_call_or_curry(ast::Call *expr) {
-        auto function = resolve_expr(expr->name.get());
-        ast::Ident* name = nullptr;
-        if(function.error)
-            return function;
+        auto function = resolve_expr_to_entity(expr->name.get());
 
-        auto fn_type = function.type;
+        if(function->is_function()) {
+            auto fn_entity = function->as<Function>();
 
-        if(fn_type->is_function()) {
-            if(expr->kind == ast::ast_name)
-                name = expr->name->as<ast::Name>()->name;
-            else if(expr->kind == ast::ast_name_generic)
-                name = expr->name->as<ast::NameGeneric>()->name;
-            else {
-                // do someting else...
-                interp->message("... What should happen here");
-                return Operand(expr);
-            }
+            auto valid = resolve_call_actuals(fn_entity, expr->actuals, expr->pos());
 
-            auto fn = search_active_scope(name);
-            if(fn->is_function()) {
-                auto fn_entity = fn->as<Function>();
-
-                auto valid = resolve_call_actuals(fn_entity, expr->actuals, expr->pos());
+            if(valid) {
+                auto ret_type = fn_entity->get_ret_type();
+                return Operand(ret_type, expr, RValue);
             }
             else {
-                interp->message("Compiler Error: found entity is not a function");
-                return Operand(expr);
+               return Operand(expr);
             }
         }
         else {
-            report(expr->pos(), "attempting to call a non-function type, type found: '%s'", fn_type->str().c_str());
-            function.error = true;
-            return function;
+            report(expr->pos(), "attempting to call a non-function type, type found: '%s'", function->get_type()->str().c_str());
+            return Operand(expr);
         }
 
         return Operand(nullptr, nullptr, LValue);

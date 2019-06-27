@@ -1,4 +1,5 @@
 #include "specs.hpp"
+#include "renderer.hpp"
 
 namespace ast {
     ExprSpec::ExprSpec(ExprPtr& type, const mu::Pos& pos) : Spec(ast_expr_type, pos), type(std::move(type)) {
@@ -29,4 +30,16 @@ namespace ast {
     TypeLitSpec::TypeLitSpec(const mu::Pos& pos) : Spec(ast_type_lit, pos) {}
 
     UnitSpec::UnitSpec(const mu::Pos& pos) : Spec(ast_unit_type, pos) {}
+    void ExprSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TupleSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void ListSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void DynListSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void ProcedureSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void PtrSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void RefSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void MutSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void SelfSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void InferSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TypeLitSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void UnitSpec::renderer(AstRenderer* renderer) { renderer->render(this); }
 }

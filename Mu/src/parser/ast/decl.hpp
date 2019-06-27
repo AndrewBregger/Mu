@@ -21,6 +21,7 @@ namespace ast {
 
         Local(PatternPtr &names, SpecPtr &type, ExprPtr &init, const mu::Pos& pos);
         virtual ~Local() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Mutable : public Decl {
@@ -30,6 +31,7 @@ namespace ast {
 
         Mutable(PatternPtr &names, SpecPtr &type, ExprPtr &init, mu::Pos& pos);
         virtual ~Mutable() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Global : public Decl {
@@ -40,6 +42,7 @@ namespace ast {
 
         Global(Ident *name, SpecPtr &type, ExprPtr &init, ast::Visibility vis, const mu::Pos& pos);
         virtual ~Global() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct GlobalMut : public Decl{
@@ -50,6 +53,7 @@ namespace ast {
 
         GlobalMut(Ident *name, SpecPtr &type, ExprPtr &init, Visibility vis, const mu::Pos& pos);
         virtual ~GlobalMut() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Attribute {
@@ -90,6 +94,7 @@ namespace ast {
                 Visibility vis, const mu::Pos& pos);
         
         virtual ~Procedure() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct ProcedureParameter : public Decl {
@@ -100,12 +105,14 @@ namespace ast {
         ProcedureParameter(PatternPtr& pattern, SpecPtr& type, ExprPtr& init, const mu::Pos& pos);
 
         virtual ~ProcedureParameter() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct SelfParameter : public Decl {
         SelfParameter(const mu::Pos& pos);
 
         virtual ~SelfParameter() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct CVariadicParameter : public Decl {
@@ -113,6 +120,7 @@ namespace ast {
         CVariadicParameter(PatternPtr pattern, const mu::Pos& pos);
 
         virtual ~CVariadicParameter() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct VariadicParameter : public Decl {
@@ -122,6 +130,7 @@ namespace ast {
         VariadicParameter(PatternPtr pattern, SpecPtr type, const mu::Pos& pos);
 
         virtual ~VariadicParameter() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Structure : public Decl {
@@ -135,6 +144,7 @@ namespace ast {
                   Visibility vis, const mu::Pos &pos);
             
         virtual ~Structure() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Type : public Decl {
@@ -148,6 +158,7 @@ namespace ast {
             Visibility vis, const mu::Pos &pos);
         
         virtual ~Type() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct TypeClass : public Decl {
@@ -159,6 +170,7 @@ namespace ast {
         TypeClass(Ident* name, std::vector<DeclPtr>& members, DeclPtr& generics, Visibility vis, const mu::Pos& pos);
 
         virtual ~TypeClass() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct UsePath : public Decl {
@@ -168,6 +180,7 @@ namespace ast {
         UsePath(const SPath& path, bool all_names, const mu::Pos& pos);
 
         virtual ~UsePath() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct UsePathList : public Decl {
@@ -177,6 +190,7 @@ namespace ast {
         UsePathList(const SPath& path, std::vector<DeclPtr>& subpaths, const mu::Pos& pos);
 
         virtual ~UsePathList() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct UsePathAlias : public Decl {
@@ -186,6 +200,7 @@ namespace ast {
         UsePathAlias(const SPath& path, Ident* alias, const mu::Pos& pos);
 
         virtual ~UsePathAlias() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Use : public Decl {
@@ -195,6 +210,7 @@ namespace ast {
         Use(DeclPtr& use_path, Visibility vis, const mu::Pos& pos);
 
         virtual ~Use() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Alias : public Decl {
@@ -205,6 +221,7 @@ namespace ast {
         Alias(Ident* name, SpecPtr& type, Visibility vis, const mu::Pos& pos);
 
         virtual ~Alias() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
 
@@ -214,6 +231,7 @@ namespace ast {
         Generic(Ident* name, const mu::Pos& pos);
 
         virtual ~Generic() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct BoundedGeneric;
@@ -231,6 +249,7 @@ namespace ast {
         BoundedGeneric(Ident* name, GenericBounds& bounds, const mu::Pos& pos);
 
         virtual ~BoundedGeneric() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct GenericGroup : public Decl {
@@ -239,6 +258,7 @@ namespace ast {
         GenericGroup(std::vector<DeclPtr>& generics, const mu::Pos& pos);
 
         virtual ~GenericGroup() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct MemberVariable : public Decl {
@@ -251,6 +271,7 @@ namespace ast {
                        std::vector<ExprPtr> &init, Visibility vis, const mu::Pos& pos);
         
         virtual ~MemberVariable() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Impl : public Decl {
@@ -260,6 +281,7 @@ namespace ast {
         Impl(Ident* name, std::vector<DeclPtr>& methods, DeclPtr& generics, const mu::Pos& pos);
 
         virtual ~Impl() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct TypeMember : public Decl {
@@ -269,6 +291,7 @@ namespace ast {
         TypeMember(Ident* name, std::vector<SpecPtr>& types, const mu::Pos& pos);
 
         virtual ~TypeMember() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct TraitElementType : public Decl {
@@ -278,6 +301,7 @@ namespace ast {
         TraitElementType(Ident* name, SpecPtr& init, const mu::Pos& pos);
 
         virtual ~TraitElementType() = default;
+        void renderer(AstRenderer* renderer) override;
     };
 }
 

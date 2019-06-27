@@ -1,7 +1,12 @@
 Immediate Tasks:
-Function Resolution
-    Foriegn function resolution
-Type Compatability
+Call resolution
+    The current implementation requires the found entity to be a function
+    entity. It needs to be changed such that if a function is assigned to
+    a variable realize it can be called as if it is a function.
+
+    add: (x f32, y f32) = x + y
+    let add2 = add
+    add2(1, 2) // this would fail because add2 is a variable not a function entity.
 
 Next Tasks:
 Impl Block Resolution

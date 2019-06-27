@@ -256,7 +256,7 @@ ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::Ex
             return expr;
         }, [this]() {
             remove_newlines();
-            bool val = check(mu::Tkn_Comma);
+            bool val = allow(mu::Tkn_Comma);
             remove_newlines();
             return val;
         }, [&pos, this](auto& results, ast::ExprPtr expr) {

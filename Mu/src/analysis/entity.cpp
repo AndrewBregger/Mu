@@ -334,6 +334,13 @@ namespace mu {
         else return params[i];
     }
 
+    types::Type *Function::get_ret_type() {
+        if(!get_type()->is_function())
+            return nullptr;
+        auto fn_type = get_type()->as<types::FunctionType>();
+        return fn_type->get_ret();
+    }
+
     Type::Type(ast::Ident *name, types::Type *type, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, TypeEntity, decl) {
     }

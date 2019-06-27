@@ -5,6 +5,7 @@
 #include "interpreter.hpp"
 #include "parser/parser.hpp"
 #include <iostream>
+#include "parser/ast/renderer.hpp"
 
 using namespace mu::types;
 
@@ -30,14 +31,13 @@ Interpreter* Interpreter::instance = nullptr;
 
 Interpreter::Context::Context(const std::vector<std::string> &args) : args(args) {
     // get the current working directory(maybe this could be passed in through the args.
+
     dir = new io::Directory(io::Path("."), true);
+
+    process_args();
 }
 
 io::File* Interpreter::Context::get_root() {
-    // the first file is assumed to be the root file containing main function.
-
-    auto root_file = args.front();
-
     auto path = io::Path(root_file);
 
     auto [file, valid] = dir->search(path);
@@ -46,6 +46,64 @@ io::File* Interpreter::Context::get_root() {
             return CAST_PTR(io::File, file);
         else
             return nullptr;    
+    }
+}
+
+void Interpreter::Context::process_args() {
+    if(args.empty()) {
+        cmd = PrintUsage;
+        return;
+    }
+
+    auto first = args.front();
+    if(first == "build") {
+        cmd = BuildExe;
+        if(args.size() - 1 == 0) {
+            cmd = Error;
+            return;
+        }
+
+        if(args.size() - 1 == 1) {
+            root_file = args[1];
+        }
+    }
+    else if(first == "build-lib") {
+        cmd = BuildLib;
+
+        if(args.size() - 1 == 0) {
+            cmd = Error;
+            return;
+        }
+
+        if(args.size() - 1 == 1) {
+            root_file = args[1];
+        }
+    }
+    else if(first == "ast-render") {
+        cmd = AstRender;
+        if(args.size() - 1 == 0) {
+            cmd = Error;
+            return;
+        }
+
+        if(args.size() - 1 == 1) {
+            root_file = args[1];
+        }
+    }
+    else if(first == "llvm-render") {
+       cmd = LLVMRender;
+        if(args.size() - 1 == 0) {
+            cmd = Error;
+            return;
+        }
+
+        if(args.size() - 1 == 1) {
+            root_file = args[1];
+        }
+    }
+    else {
+        cmd = BuildExe;
+        root_file = first;
     }
 }
 
@@ -146,9 +204,28 @@ void Interpreter::setup() {
 }
 
 void Interpreter::compile() {
-    auto root = context.get_root();
+    auto cmd = context.cmd;
 
-    auto res = process(root);
+    switch(cmd) {
+        case BuildExe:
+        case BuildLib: {
+            auto file = context.get_root();
+            context.current_file = file;
+            process(file);
+            break;
+        }
+        case AstRender:
+        case LLVMRender: {
+            auto file = context.get_root();
+            context.current_file = file;
+            render(file);
+        } break;
+        case PrintUsage:
+            usage();
+            break;
+        case PrimaryCommand::Error:
+            fatal("error processing arguments");
+    };
 }
 
 InterpResult Interpreter::process(io::File *file) {
@@ -177,10 +254,38 @@ InterpResult Interpreter::process(io::File *file) {
 //    auto expr = parser.parse_expr();
 //    auto res = typer.resolve_expr(expr.get(), nullptr);
     if(!module or parser.has_error())
-        return Error;
+        return InterpResult::Error;
     else {
         auto modulefile = typer.resolve_main_module(module);
     }
+}
+
+InterpResult Interpreter::render(io::File *file) {
+    mu::Parser parser(this);
+    auto module = parser.process(file);
+
+    if(parser.has_error())
+        return InterpResult::Error;
+
+    switch(context.cmd) {
+        case AstRender: {
+            ast::AstRenderer renderer(true, std::cout);
+            renderer.render(module);
+            return InterpResult::Success;
+        }
+        case LLVMRender: {
+            mu::Typer typer(this);
+            typer.resolve_main_module(module);
+            return InterpResult::Error;
+        }
+        default:
+            break;
+    }
+    return InterpResult::Error;
+}
+
+void Interpreter::usage() {
+
 }
 
 void Interpreter::print_file_pos(const mu::Pos &pos) {

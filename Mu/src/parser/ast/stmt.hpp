@@ -13,6 +13,7 @@ namespace ast {
     struct ExprStmt : public Stmt {
         ExprPtr expr;
         ExprStmt(ExprPtr& expr, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
 
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
@@ -25,6 +26,7 @@ namespace ast {
     struct DeclStmt : public Stmt {
         DeclPtr decl;
         DeclStmt(DeclPtr& decl, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            AstNode::operator<<(out) << std::endl;
@@ -35,6 +37,7 @@ namespace ast {
 
     struct EmptyStmt : public Stmt {
         EmptyStmt(const mu::Pos pos);
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            AstNode::operator<<(out) << std::endl;

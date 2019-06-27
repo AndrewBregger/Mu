@@ -31,16 +31,32 @@ enum InterpResult {
 
 class Interpreter {
 public:
+
+    enum PrimaryCommand {
+        BuildExe, // default, no command
+        BuildLib,
+        AstRender,
+        LLVMRender,
+        PrintUsage,
+        Error,
+    };
+
     struct Context {
+        PrimaryCommand cmd;
+
         io::File* current_file{nullptr};
         io::Directory* dir{nullptr};
         // io::Directory* standard; // Directory containing standard library
         // command line argument arguments are stored here.
         std::vector<std::string> args;
 
-        Context(const std::vector<std::string>& args);
-
         io::File* get_root();
+
+        std::string render_file;
+        std::string root_file;
+
+        Context(const std::vector<std::string>& args);
+        void process_args();
     };
 
     Interpreter(const std::vector<std::string>& args);
@@ -50,6 +66,10 @@ public:
     void compile();
 
     InterpResult process(io::File *file);
+
+    InterpResult render(io::File* file);
+
+    void usage();
 
     Atom* find_name(const std::string& name);
 

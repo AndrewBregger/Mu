@@ -138,6 +138,7 @@ namespace mu {
 
         inline ast::DeclPtr decl_ptr() { return decl; }
 
+        inline bool is_variable() { return is_global() or is_local() or is_constant(); }
 
         virtual bool is_global() { return false; }
         virtual bool is_local() { return false; }
@@ -338,6 +339,9 @@ namespace mu {
         bool is_function() override { return true; }
 
         void debug_print(std::ostream &out) override;
+
+
+        types::Type* get_ret_type();
 
         inline ScopePtr get_param_scope() { return param_scope_ptr; }
         inline u64 num_params() { return params.size(); }

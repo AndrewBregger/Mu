@@ -57,6 +57,8 @@ add_executable(Mu
         Mu/src/parser/ast/stmt.cpp
         Mu/src/parser/ast/pattern.cpp
         Mu/src/parser/ast/specs.cpp
+        Mu/src/parser/ast/renderer.hpp
+        Mu/src/parser/ast/renderer.cpp
         Mu/src/parser/parser.cpp
         Mu/src/parser/parser.hpp
         Mu/src/parser/grammer/grammer.cpp
@@ -113,7 +115,9 @@ add_executable(Mu
         Mu/src/parser/grammer/parsers/cast_parser.hpp
         Mu/src/analysis/typer_op_eval.cpp
         Mu/src/analysis/typer_op_eval.hpp
-        Mu/src/analysis/operand.cpp Mu/src/analysis/operand.hpp)
+        Mu/src/analysis/operand.cpp
+        Mu/src/analysis/operand.hpp
+        )
 
 # Find the libraries that correspond to the LLVM components
 # that we wish to use

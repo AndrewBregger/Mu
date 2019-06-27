@@ -18,6 +18,7 @@ namespace ast {
         Name(Ident* name, const mu::Pos& pos);
 
         ~Name() override = default;
+        void renderer(AstRenderer* renderer) override;
 
 //        inline std::string str() { return name->val->value; }
 
@@ -30,9 +31,10 @@ namespace ast {
     
     struct NameGeneric : Expr {
         Ident* name;
-        std::vector<ast::SpecPtr> type_params;
+        std::vector<SpecPtr> type_params;
 
-        NameGeneric(Ident* name, std::vector<ast::SpecPtr>& type_params, const mu::Pos& pos);
+        NameGeneric(Ident* name, std::vector<SpecPtr>& type_params, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Integer : public Expr {
@@ -40,6 +42,8 @@ namespace ast {
 
         Integer(u64 value, const mu::Pos& pos);
         ~Integer() override;
+
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -53,6 +57,7 @@ namespace ast {
 
         Float(f64 value, const mu::Pos& pos);
         ~Float() override;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -66,6 +71,7 @@ namespace ast {
 
         Char(char value, const mu::Pos& pos);
         ~Char() override;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -79,6 +85,7 @@ namespace ast {
 
         Str(const std::string& value, const mu::Pos& pos);
         ~Str() override;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -91,18 +98,22 @@ namespace ast {
         bool value;
 
         Bool(bool value, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Nil : public Expr {
         explicit Nil(const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Unit : public Expr {
         explicit Unit(const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Self : public Expr {
         explicit Self(const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Lambda : public Expr {
@@ -113,6 +124,7 @@ namespace ast {
         Lambda(std::vector<DeclPtr>& parameters, SpecPtr& ret, ExprPtr& body, const mu::Pos& pos);
 
         ~Lambda() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct TupleExpr : public Expr {
@@ -121,6 +133,7 @@ namespace ast {
         TupleExpr(std::vector<ExprPtr>& elements, const mu::Pos& pos);
 
         ~TupleExpr() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct List : public Expr {
@@ -129,6 +142,7 @@ namespace ast {
         List(std::vector<ExprPtr>& elements, const mu::Pos& pos);
 
         ~List() override = default;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -149,6 +163,7 @@ namespace ast {
         Map(std::vector<std::tuple<ExprPtr, ExprPtr>>& elements, const mu::Pos& pos);
 
         ~Map() override = default;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -172,6 +187,7 @@ namespace ast {
 
         Unary(mu::TokenKind op, ExprPtr& expr, const mu::Pos& pos);
         ~Unary() override;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -188,6 +204,7 @@ namespace ast {
         Binary(mu::TokenKind op, ExprPtr& lhs, ExprPtr& rhs, const mu::Pos& pos);
 
         ~Binary() override;
+        void renderer(AstRenderer* renderer) override;
 
 //        virtual std::ostream&operator<< (std::ostream& out) {
 //            Expr::operator<<(out);
@@ -205,6 +222,7 @@ namespace ast {
         Accessor(ExprPtr& operand, Ident* name, const mu::Pos& pos);
 
         ~Accessor() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct TupleAcessor : public Expr {
@@ -214,6 +232,7 @@ namespace ast {
         TupleAcessor(ExprPtr& operand, u64 value, const mu::Pos& pos);
 
         ~TupleAcessor() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Method : public Expr {
@@ -226,6 +245,7 @@ namespace ast {
         Method(ExprPtr& operand, ExprPtr& name, const std::vector<ExprPtr>& actuals, const mu::Pos& pos);
 
         ~Method() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Cast : public Expr {
@@ -235,6 +255,7 @@ namespace ast {
         Cast(ExprPtr& operand, SpecPtr& type, const mu::Pos& pos);
 
         ~Cast() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Block : public Expr {
@@ -243,6 +264,7 @@ namespace ast {
         Block(std::vector<StmtPtr>& elements, const mu::Pos& pos);
 
         ~Block() override;
+        void renderer(AstRenderer* renderer) override;
 
 //        std::ostream&operator<< (std::ostream& out) override {
 //            Expr::operator<<(out);
@@ -267,6 +289,7 @@ namespace ast {
              const mu::Pos &pos);
 
         ~Call() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct If : public Expr {
@@ -277,6 +300,7 @@ namespace ast {
         If(ExprPtr& cond, ExprPtr& body, ExprPtr& else_if, const mu::Pos& pos);
 
         ~If() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct While : public Expr {
@@ -286,6 +310,7 @@ namespace ast {
         While(ExprPtr& cond, ExprPtr& body, const mu::Pos& pos);
 
         ~While() override;
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct MatchArm : public Expr {
@@ -293,6 +318,7 @@ namespace ast {
        ExprPtr body;
 
        MatchArm(std::vector<PatternPtr>& patterns, ExprPtr& body, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Match : public Expr {
@@ -300,6 +326,7 @@ namespace ast {
         std::vector<ExprPtr> members;
 
         Match(ExprPtr& cond, std::vector<ExprPtr>& members, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct For : public Expr {
@@ -308,18 +335,21 @@ namespace ast {
         ast::ExprPtr body;
 
         For(ast::PatternPtr& pattern, ast::ExprPtr& expr, ast::ExprPtr& body, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Defer : public Expr {
         ExprPtr body;
 
         Defer(ExprPtr& body, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Return : public Expr {
         ExprPtr body;
 
         Return(ExprPtr& body, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct BindingExpr : public Expr {
@@ -327,6 +357,7 @@ namespace ast {
         ExprPtr expr;
 
         BindingExpr(Ident* name, ExprPtr& expr, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct StructExpr : public Expr {
@@ -334,6 +365,7 @@ namespace ast {
         std::vector<ExprPtr> members;
 
         StructExpr(SpecPtr& spec, std::vector<ExprPtr>& members, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Range : public Expr {
@@ -342,6 +374,7 @@ namespace ast {
         ExprPtr step;
 
         Range(ExprPtr& start, ExprPtr& end, ExprPtr& step, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 
     struct Assign : public Expr {
@@ -350,6 +383,7 @@ namespace ast {
         ExprPtr rvalue;
 
         Assign(mu::TokenKind op, ExprPtr& lvalue, ExprPtr& rvalue, const mu::Pos& pos);
+        void renderer(AstRenderer* renderer) override;
     };
 }
 

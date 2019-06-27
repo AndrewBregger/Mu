@@ -1,4 +1,5 @@
 #include "pattern.hpp"
+#include "renderer.hpp"
 
 namespace ast {
     IdentPattern::IdentPattern(Ident* name, const mu::Pos& pos) : Pattern(ast_ident_pattern, pos), name(name) {}
@@ -35,4 +36,18 @@ namespace ast {
 
     RangePattern::RangePattern(PatternPtr& start, PatternPtr& end, const mu::Pos& pos) : Pattern(ast_range_pattern, pos),
         start(std::move(start)), end(std::move(end)) {}
+    void IdentPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void MultiPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TuplePattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void StructPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void ListPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TypePattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void IgnorePattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void BindPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void IntPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void FloatPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void CharPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void StringPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void BoolPattern::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void RangePattern::renderer(AstRenderer* renderer) { renderer->render(this); }
 }

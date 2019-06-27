@@ -1,4 +1,5 @@
 #include "decl.hpp"
+#include "renderer.hpp"
 
 namespace ast {
     Local::Local(PatternPtr &names, SpecPtr &type, ExprPtr &init, const mu::Pos &pos)
@@ -120,6 +121,29 @@ namespace ast {
 
     TraitElementType::TraitElementType(Ident *name, SpecPtr &init, const mu::Pos &pos) : Decl(ast_trait_element_type,
                                                                                               pos),
-                                                                                         name(name),
-                                                                                         init(std::move(init)) {}
+                                                                                         name(name), init(std::move(init)) {}
+    void Local::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Mutable::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Global::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void GlobalMut::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Procedure::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void ProcedureParameter::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void SelfParameter::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void CVariadicParameter::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void VariadicParameter::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Structure::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Type::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TypeClass::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void UsePath::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void UsePathList::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void UsePathAlias::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Use::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Alias::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Generic::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void BoundedGeneric::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void GenericGroup::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void MemberVariable::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void Impl::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TypeMember::renderer(AstRenderer* renderer) { renderer->render(this); }
+    void TraitElementType::renderer(AstRenderer* renderer) { renderer->render(this); }
 }

@@ -44,6 +44,8 @@ namespace mu {
 }
 
 namespace ast {
+    class AstRenderer;
+
     struct Ident {
         Atom* val;
         mu::Pos pos;
@@ -204,6 +206,8 @@ namespace ast {
         T* as() {
             return (T*) const_cast<const AstNode&>(*this).as<T>();
         }
+
+        virtual void renderer(AstRenderer* renderer) = 0;
     };
 
     struct Decl : public AstNode {
