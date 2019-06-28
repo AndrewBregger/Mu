@@ -263,11 +263,10 @@ std::string mu::types::StructType::str() {
 }
 
 u64 mu::types::StructType::get_index_of_member(mu::Entity *entity) {
-    auto iter = std::find(members.begin(), members.end(), entity);
-    if(iter == members.end())
-        return (u64) -1;
-    else
-        return std::distance(iter, members.begin());
+    for(u64 i = 0; i < members.size(); ++i)
+        if(members[i] == entity)
+            return i;
+    return (u64) -1;
 }
 
 mu::types::FunctionType::FunctionType(const std::vector<Type*>& params,

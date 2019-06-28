@@ -1,12 +1,9 @@
 Immediate Tasks:
-Block expressions
-Statement Resolution
-
-
-Next Tasks:
 Impl Block Resolution
     How to attach the impl block to a structure such that
     it gets resolved after the structure?
+
+Next Tasks:
 Fix the function type spec parsing
     it current is (...) -> ret
     it needs to be (...) ret
@@ -16,6 +13,7 @@ Local resolution
 Trait resolution for structure
 Casting
 Control Flow (If, While, Loop)
+Finish Pattern resolution (probabaly finish when I am implemented traits and sum types)
 Preliminary String implementation
 Preliminary Iterator implementation
 For loops using the iterators.

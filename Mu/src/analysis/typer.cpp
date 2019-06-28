@@ -845,8 +845,54 @@ namespace mu {
         return entities;
     }
 
-    Entity* Typer::resolve_local_from_decl(ast::DeclPtr decl_ptr) {
-        
+    void Typer::resolve_local_from_decl(ast::DeclPtr decl_ptr, bool mut) {
+        ast::PatternPtr pattern;
+        ast::SpecPtr spec;
+        ast::ExprPtr init;
+        push_context_state(resolving_local, true);
+
+        if(mut) {
+            auto local = decl_ptr->as<ast::Mutable>();
+            pattern = local->names;
+            spec = local->type;
+            init = local->init;
+        }
+        else {
+            auto local = decl_ptr->as<ast::Local>();
+            pattern = local->names;
+            spec = local->type;
+            init = local->init;
+
+            if(!init) {
+                report_str(decl_ptr->pos(), "constant local must be initialized");
+                pop_context_state(resolving_local);
+                return;
+            }
+        }
+
+        if(spec->kind != ast::ast_infer_type and !init) {
+            report_str(decl_ptr->pos(), "local variable requires a type annotation or initialization expression")
+            pop_context_state(resolving_local);
+            return;
+        }
+
+        types::Type* type = nullptr;
+        Operand result(nullptr, init.get(), RValue);
+
+        if(spec)
+            type = resolve_spec(spec.get());
+
+        if(init)
+            result = resolve_expr(init.get(), type);
+
+        auto expected_type = (type ? type : result.type);
+        Operand op = result;
+
+        op.error = false;
+        op.type= expected_type;
+
+        resolve_pattern(pattern.get(), op, decl_ptr);
+        pop_context_state(resolving_local);
     }
 
     Entity *Typer::resolve_expr_to_entity(ast::Expr *expr) {
@@ -929,6 +975,9 @@ namespace mu {
                 break;
             case ast::ast_call:
                 result = resolve_call_or_curry(expr->as<ast::Call>());
+                break;
+            case ast::ast_block:
+                result = resolve_block(expr);
                 break;
             default:
                 break;
@@ -1293,7 +1342,14 @@ namespace mu {
                     }
                     default:
                         if(entity->is_local()) {
-                            return Operand(entity->get_type(), expr, access);
+                            auto local = entity->as<Local>();
+                            if(local->is_visable())
+                                return Operand(entity->get_type(), expr, access);
+                            else {
+                                report(expr->pos(), "unable to access private member '%s' of struct '%s'", entity->get_name()->value().c_str(),
+                                        ctype->get_name()->value().c_str());
+                                return Operand(expr);
+                            }
                         }
                         else if(entity->is_module() || entity->is_type()) {
                             return Operand(entity->get_type(), expr, TypeAccess);
@@ -1704,10 +1760,24 @@ namespace mu {
 
     Operand Typer::resolve_block(ast::Expr *expr) {
         auto block = expr->as<ast::Block>();
+        Operand res(expr);
+
+        // build the scope for the block
+        auto scope = make_scope<BlockScope>(expr, active_scope());
+        push_scope(scope);
 
         for(auto stmt : block->elements) {
+            if(stmt->kind == ast::ast_empty)
+                continue;
 
+            res = resolve_stmt(stmt.get());
+            if(res.error)
+                break;
         }
+
+        pop_scope();
+
+        return res;
     }
 
     // Some of my spec resolution can be reduced to resolving expression.
@@ -1870,11 +1940,121 @@ namespace mu {
         return entity;
     }
 
-    void Typer::resolve_stmt(ast::Stmt *stmt) {
-
+    Operand Typer::resolve_stmt(ast::Stmt *stmt) {
+        switch(stmt->kind) {
+            case ast::ast_expr: {
+                auto expr = stmt->as<ast::ExprStmt>();
+                return resolve_expr(expr->expr.get());
+            }
+            case ast::ast_decl: {
+                auto decl = stmt->as<ast::DeclStmt>();
+                resolve_decl_stmt(decl);
+                return Operand(type_unit, nullptr, RValue);
+            }
+            case ast::ast_empty:
+                return Operand(type_unit, nullptr, RValue);
+        }
     }
 
-    void Typer::resolve_decl_stmt(ast::DeclStmt *stmt) {
+    Operand Typer::resolve_decl_stmt(ast::DeclStmt *stmt) {
+        auto decl = stmt->decl;
+        Entity* entity;
 
+        switch(decl->kind) {
+            case ast::ast_local: {
+                resolve_local_from_decl(decl, false);
+                return Operand(type_unit, nullptr, RValue);
+            }
+            case ast::ast_mutable: {
+                resolve_local_from_decl(decl, true);
+                return Operand(type_unit, nullptr, RValue);
+            }
+            case ast::ast_procedure: {
+                auto p = decl->as<ast::Procedure>();
+                entity = interp->new_entity<Function>(p->name, active_scope(), decl);
+            } break;
+            case ast::ast_structure: {
+                auto s = decl->as<ast::Structure>();
+                entity = interp->new_entity<Type>(s->name, active_scope(), decl);
+            } break;
+            case ast::ast_type: {
+                auto s = decl->as<ast::Type>();
+                entity = interp->new_entity<Type>(s->name, active_scope(), decl);
+            } break;
+            case ast::ast_use: {
+                auto s = decl->as<ast::Use>();
+                ast::Ident* name = nullptr;
+                switch(s->use_path->kind) {
+                    case ast::ast_use_path:
+                    case ast::ast_use_path_list:
+                    case ast::ast_use_path_alias:
+                    default:
+                    report_str(s->use_path->pos(), "Compiler Error: parser bug in use declaration");
+                }
+                interp->fatal("Use are not implemented at this moment");
+                entity = interp->new_entity<Module>(name, active_scope(), decl);
+            } break;
+            case ast::ast_alias: {
+                auto a = decl->as<ast::Alias>();
+                entity = interp->new_entity<Alias>(a->name, (types::Type*) nullptr, active_scope(), decl);
+            } break;
+            default:
+                report_str(decl->pos(), "invalid declaration in function scope");
+                return Operand(nullptr);
+        }
+
+        entity = resolve_entity(entity);
+        if(entity)
+            return Operand(type_unit, nullptr, RValue);
+        else
+            return Operand(nullptr);
+    }
+
+    void Typer::resolve_pattern(ast::Pattern *pattern, Operand expected_type, ast::DeclPtr decl) {
+        auto type = expected_type.type;
+        switch(pattern->kind) {
+            case ast::ast_ident_pattern: {
+                auto pat = pattern->as<ast::IdentPattern>();
+                auto entity = interp->new_entity<Local>(pat->name, type, get_addressing_by_type(type),
+                        active_scope(), decl);
+                entity->resolve_to(type);
+                add_entity(entity);
+                entity->debug_print(interp->out_stream());
+            } break;
+            case ast::ast_tuple_desc: {
+                auto pat = pattern->as<ast::TuplePattern>();
+                if(type->is_tuple()) {
+                    auto tuple_type = type->as<types::Tuple>();
+                    u32 sub_pattern_index = 0;
+                    for(auto sub_pattern : pat->patterns) {
+                        resolve_pattern(sub_pattern.get(),
+                                Operand(tuple_type->get_element_type(sub_pattern_index),
+                                        expected_type.expr, expected_type.access),
+                                        decl);
+                        ++sub_pattern_index;
+                    }
+                }
+                else {
+                    report(pattern->pos(), "tuple pattern expects a tuple type, found '%s'", type->str().c_str())
+                }
+            } break;
+            case ast::ast_struct_desc:
+            case ast::ast_list_desc:
+            case ast::ast_type_desc:
+
+            case ast::ast_multi:
+            case ast::ast_bind_pattern:
+            case ast::ast_range_pattern:
+
+            case ast::ast_int_pattern:
+            case ast::ast_float_pattern:
+            case ast::ast_char_pattern:
+            case ast::ast_string_pattern:
+            case ast::ast_bool_pattern:
+                break;
+
+            case ast::ast_ignore_pattern:
+                break;
+        }
     }
 }

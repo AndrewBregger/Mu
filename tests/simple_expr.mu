@@ -1,5 +1,5 @@
 Foo: struct {
-    x bool,
+    pub x bool,
     y f32
 }
 
@@ -9,8 +9,8 @@ Bar: struct {
 }
 
 main: () {
-    let foo = Foo {x: true, y: 1.0}
-    foo.x
+    let t = (1.0, false)
+    let (x, y) = t
 }
 
 // addFloat: (x f32, y f32) = add2(x, 1)

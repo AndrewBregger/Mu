@@ -103,7 +103,7 @@ namespace mu {
             Entity* resolve_trait(Type* entity, ast::DeclPtr decl_ptr);
             Entity* resolve_poly_trait(Type* entity, ast::DeclPtr decl_ptr);
 
-            Entity* resolve_local_from_decl(ast::DeclPtr local);
+            void resolve_local_from_decl(ast::DeclPtr decl_ptr, bool mut);
 
             std::vector<Local*> resolve_member_variable(ast::DeclPtr decl_ptr);
 
@@ -171,9 +171,15 @@ namespace mu {
 
             /*--------------------------Stmt Handling----------------------------*/
 
-            void resolve_stmt(ast::Stmt* stmt);
+            Operand resolve_stmt(ast::Stmt* stmt);
 
-            void resolve_decl_stmt(ast::DeclStmt* stmt);
+            Operand resolve_decl_stmt(ast::DeclStmt* stmt);
+
+            /*--------------------------Pattern Handling------------------------*/
+
+            // resovles a pattern, the pattern is matched with the expected type
+            // if they do not match then there is an error otherwise, the entities are created.
+            void resolve_pattern(ast::Pattern *pattern, Operand expected_type, ast::DeclPtr decl);
 
             /*--------------------------Spec Handling----------------------------*/
             // resolve a type spec to the type it specifies.
@@ -203,6 +209,8 @@ namespace mu {
                 bool allow_incomplete_types{false};     // this is to allow incomplete pointer or references (ie. in linked lists).
                 bool resolving_trait_body{false};       // resolving trait body, this means that function do not have to have a body.
                 bool function_body{false};              // resolving a function body, this is to be used when resolving parameter names.
+                bool resolving_local{false};            // resolving local, this is for pattern resolution
+                bool resolving_match{false};            // resolving match, this is for pattern resolution
             };
 
             void increment_error();
