@@ -96,7 +96,9 @@ void mu::Parser::pop_restriction() {
 ast::ModuleFile *mu::Parser::process(io::File *file) {
     if(!scanner.init(file))
         return nullptr;
-    advance();
+    scanner.advance();
+    t = scanner.token();
+    scanner.advance();
     return parse_module();
 }
 
@@ -135,8 +137,8 @@ ast::ModuleFile * mu::Parser::parse_module() {
 
 bool mu::Parser::advance(bool ignore_newline) {
     do {
-        scanner.advance();
         t = scanner.token();
+        scanner.advance();
     } while(t.kind() == mu::Tkn_Comment ||
             (ignore_newline and t.kind() == Tkn_NewLine)
     );

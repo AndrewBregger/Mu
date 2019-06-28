@@ -42,6 +42,7 @@ ast::ExprPtr parse::NameParser::lud(mu::Parser &parser, mu::Token token) {
                             auto token = parser.current();
                             auto pos = token.pos();
                             parser.advance();
+                            parser.advance();
                             pos.span++;
                             auto expr = parser.parse_expr();
                             pos.extend(expr->pos());
