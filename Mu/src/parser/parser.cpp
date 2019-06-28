@@ -394,8 +394,8 @@ ast::ExprPtr mu::Parser::parse_suffix(ast::ExprPtr& expr, bool is_spec) {
 
 ast::StmtPtr mu::Parser::parse_stmt() {
     if(check(mu::Tkn_Let) or check(mu::Tkn_Mut) or check(mu::Tkn_At) or
-       (check(mu::Tkn_Identifier) and check(mu::Tkn_Colon))) {
-        report(current().pos(), "declarations are not implemented");
+       (check(mu::Tkn_Identifier) and peek().kind() == mu::Tkn_Colon)) {
+//        report(current().pos(), "declarations are not implemented");
          auto decl = parse_decl(current());
          return ast::make_stmt<ast::DeclStmt>(decl, decl->pos());
     }
@@ -1253,6 +1253,7 @@ ast::SpecPtr mu::Parser::parse_spec(bool allow_infer) {
         }
         case mu::Tkn_OpenParen: {
             auto pos = token.pos();
+            advance();
             auto params = many<ast::SpecPtr>(
                     [this]() {
                         return parse_spec(false);
@@ -1273,7 +1274,7 @@ ast::SpecPtr mu::Parser::parse_spec(bool allow_infer) {
             expect(mu::Tkn_CloseParen);
             pos.span++;
 
-            if(allow(mu::Tkn_Arrow)) {
+            if(allow(mu::Tkn_MinusGreater)) {
                 auto ret = parse_spec(false);
                 pos.extend(ret->pos());
 

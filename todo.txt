@@ -1,17 +1,16 @@
 Immediate Tasks:
-Call resolution
-    The current implementation requires the found entity to be a function
-    entity. It needs to be changed such that if a function is assigned to
-    a variable realize it can be called as if it is a function.
+Block expressions
+Statement Resolution
 
-    add: (x f32, y f32) = x + y
-    let add2 = add
-    add2(1, 2) // this would fail because add2 is a variable not a function entity.
 
 Next Tasks:
 Impl Block Resolution
     How to attach the impl block to a structure such that
     it gets resolved after the structure?
+Fix the function type spec parsing
+    it current is (...) -> ret
+    it needs to be (...) ret
+    This is because it coincides with how functions are declared.
 Method call expressions
 Local resolution
 Trait resolution for structure
@@ -22,3 +21,4 @@ Preliminary Iterator implementation
 For loops using the iterators.
 Range based for loops
 Simple Code Generation (LLVM / Custom VM)
+Examine if curried functions is practical in the scope of this language.

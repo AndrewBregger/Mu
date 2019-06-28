@@ -40,12 +40,12 @@ Interpreter::Context::Context(const std::vector<std::string> &args) : args(args)
 io::File* Interpreter::Context::get_root() {
     auto path = io::Path(root_file);
 
-    auto [file, valid] = dir->search(path);
-    if(valid) {
-        if(file->is_file())
+    auto [file, status] = dir->search(path);
+    switch(status) {
+        case io::FileOk:
             return CAST_PTR(io::File, file);
-        else
-            return nullptr;    
+        default:
+            return nullptr;
     }
 }
 
@@ -105,6 +105,10 @@ void Interpreter::Context::process_args() {
         cmd = BuildExe;
         root_file = first;
     }
+
+    auto n = get_root();
+    if(!n)
+        cmd = Error;
 }
 
 Interpreter::Interpreter(const std::vector<std::string> &args) : context(args) {
@@ -121,7 +125,7 @@ Interpreter::Interpreter(const std::vector<std::string> &args) : context(args) {
 
 io::File *Interpreter::find_file_by_id(u64 id) {
     auto [file, valid] = context.dir->find(id);
-    if(valid and file->is_file())
+    if(valid == io::FileOk and file->is_file())
         return CAST_PTR(io::File, file);
     else
         return nullptr;
@@ -224,7 +228,11 @@ void Interpreter::compile() {
             usage();
             break;
         case PrimaryCommand::Error:
-            fatal("error processing arguments");
+            if(!context.get_root()) {
+                fatal("'" + context.root_file + "' doesn't exist");
+            }
+            else
+                fatal("error processing arguments");
     };
 }
 

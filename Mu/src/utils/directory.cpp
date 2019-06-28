@@ -87,43 +87,42 @@ namespace io {
         return true;
     }
 
-    std::tuple<IO *, bool> Directory::find(const Path &p) {
+    std::tuple<IO *, IoStatus> Directory::find(const Path &p) {
         return search(p);
     }
 
-    std::tuple<IO *, bool> Directory::find(u64 id) {
+    std::tuple<IO *, IoStatus> Directory::find(u64 id) {
         if(!is_load())
             load();
 
         if(contain(id))
-            return std::make_tuple(content[id], true);
+            return std::make_tuple(content[id], FileOk);
 
         for(const auto& [key, value] : content) {
             if(!value->is_file()) {
                 auto dir = dynamic_cast<io::Directory*>(value);
-                auto [file, valid] = dir->find(id);
-                if(valid)
-                    return std::make_tuple(file, valid);
+                auto [file, status] = dir->find(id);
+                if(status == FileOk)
+                    return std::make_tuple(file, FileOk);
             }
         }
-
-        return std::make_tuple(nullptr, false);
+        return std::make_tuple(nullptr, FileDoesntExist);
     }
 
-    std::tuple<IO *, bool> Directory::search(const std::string &name, bool ignore_extension) {
+    std::tuple<IO *, IoStatus> Directory::search(const std::string &name, bool ignore_extension) {
         if(!is_load())
             load();
 
         for(auto& [id, io] : content) {
             auto p = io->path();
             if(name == p.filename(!ignore_extension).string())
-                return std::make_tuple(io, true);
+                return std::make_tuple(io, FileOk);
         }
-        return std::make_tuple(nullptr, false);
+        return std::make_tuple(nullptr, FileDoesntExist);
 
     }
 
-    std::tuple<IO *, bool> Directory::search(const Path &name, bool ignore_extension) {
+    std::tuple<IO *, IoStatus> Directory::search(const Path &name, bool ignore_extension) {
         // if not loaded, load it.
         if(!is_load())
             load();
@@ -141,17 +140,18 @@ namespace io {
         for(auto n : paths) {
             if(curr->is_file()) {
                 std::cout << "Invalid path given to Directory::search" << std::endl;
-                return std::make_tuple(nullptr, false);
+                return std::make_tuple(nullptr, FileDoesntExist);
             }
 
             auto [io, valid] = CAST_PTR(Directory, curr)->search(n, ignore_extension);
 
-            if(valid)
+            if(valid == FileOk) {
                 curr = io;
+            }
             else
-                return std::make_tuple(nullptr, false);
+                return std::make_tuple(nullptr, FileDoesntExist);
         }
 
-        return std::make_tuple(curr, true);
+        return std::make_tuple(curr, FileOk);
     }
 }

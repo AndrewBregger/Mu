@@ -138,7 +138,13 @@ namespace mu {
             // this is for when a struct overloads a unary operator
             Operand resolve_unary_overload(TokenKind op, Operand operand, ast::Expr *expr, types::Type *expected_type);
 
-            bool resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos);
+            // this is used when the function entity is known.
+            std::tuple<std::vector<Operand>, bool> resolve_call_actuals(Function *fn,
+                    const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos);
+
+            // this is used when calling a function pointer.
+            std::tuple<std::vector<Operand>, bool> resolve_actauls(types::FunctionType* fn,
+                    const std::vector<ast::ExprPtr>& actuals, const mu::Pos& call_pos);
 
             Operand resolve_call_or_curry(ast::Call* expr);
 
@@ -160,6 +166,14 @@ namespace mu {
             Operand resolve_tuple_accessor(ast::Expr* expr);
 
             Operand resolve_struct_expr(ast::Expr* expr);
+
+            Operand resolve_block(ast::Expr* expr);
+
+            /*--------------------------Stmt Handling----------------------------*/
+
+            void resolve_stmt(ast::Stmt* stmt);
+
+            void resolve_decl_stmt(ast::DeclStmt* stmt);
 
             /*--------------------------Spec Handling----------------------------*/
             // resolve a type spec to the type it specifies.

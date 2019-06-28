@@ -139,6 +139,8 @@ namespace mu {
         inline ast::DeclPtr decl_ptr() { return decl; }
 
         inline bool is_variable() { return is_global() or is_local() or is_constant(); }
+        inline bool is_used() { return used; }
+        inline void set_used() { used = true; }
 
         virtual bool is_global() { return false; }
         virtual bool is_local() { return false; }
@@ -164,6 +166,7 @@ namespace mu {
         ast::Ident* name{nullptr};  // name of the entity
         ast::DeclPtr decl;          // the source declaration where this entity is created.
         EntityStatus resolved{Incomplete};       // flag for whether the entity has been resolved by the typer.
+        bool used{false};           // Uses to determine if the entity has been used or not.
     };
 
     typedef std::unique_ptr<Entity> EntityPtr;

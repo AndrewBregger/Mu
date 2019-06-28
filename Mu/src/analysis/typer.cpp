@@ -572,6 +572,13 @@ namespace mu {
         if(!ret_type)
             ret_type = expr_ret.type;
 
+        for(auto p : params) {
+            if(!p->is_used()) {
+                interp->print_file_pos(p->get_decl()->pos());
+                interp->message("parameter '%s' is not used", p->get_name()->value().c_str());
+                interp->print_file_section(p->get_decl()->pos());
+            }
+        }
         auto type = interp->checked_new_type<types::FunctionType>(param_types, ret_type);
         funct->resolve_to(type);
         return funct;
@@ -706,14 +713,14 @@ namespace mu {
         return entity;
     }
 
-    Entity* Typer::resolve_function(Type* entity, ast::DeclPtr decl_ptr) {
-        return entity;
-    }
-
-    Entity* Typer::resolve_poly_function(Type* entity, ast::DeclPtr decl_ptr) {
-
-        return entity;
-    }
+//    Entity* Typer::resolve_function(Type* entity, ast::DeclPtr decl_ptr) {
+//        return entity;
+//    }
+//
+//    Entity* Typer::resolve_poly_function(Type* entity, ast::DeclPtr decl_ptr) {
+//
+//        return entity;
+//    }
 
     Entity* Typer::resolve_sumtype(Type* entity, ast::DeclPtr decl_ptr) {
 
@@ -843,17 +850,28 @@ namespace mu {
     }
 
     Entity *Typer::resolve_expr_to_entity(ast::Expr *expr) {
+        Entity* entity = nullptr;
         switch(expr->kind) {
             case ast::ast_name:
-                return resolve_name_expr(expr->as<ast::Name>());
+                 entity = resolve_name_expr(expr->as<ast::Name>());
+                 break;
             case ast::ast_name_generic: {
-                auto [op, entity] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
-                return entity;
+                auto [op, e] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
+                entity = e;
+                break;
+            }
+            case ast::ast_accessor: {
+                auto accessor = expr->as<ast::Accessor>();
+                entity = resolve_accessor_spec(accessor);
+                break;
             }
             default:
                 resolve_expr(expr);
                 return nullptr;
         }
+
+        if(entity) entity->set_used();
+        return entity;
     }
 
     /// @NOTE: If a specific expression resolve function is
@@ -1156,6 +1174,11 @@ namespace mu {
             case ast::ast_name: {
                 auto name = expr->as<ast::Name>();
                 auto entity = resolve_name_expr(name);
+                if(!entity) {
+                    report(expr->pos(), "use of undeclared name '%s'", name->name->value().c_str());
+                    return Operand(expr);
+                }
+                entity->set_used();
                 if(entity->is_variable()) {
                     bool is_initialized = false;
                     switch(entity->kind()) {
@@ -1431,13 +1454,22 @@ namespace mu {
        return Operand(struct_type, expr, RValue);
     }
 
-    bool Typer::resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
+    std::tuple<std::vector<Operand>, bool>
+    Typer::resolve_call_actuals(Function *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
 //        auto type = fn->get_type();
         auto scope_param = fn->get_param_scope();
         // if the function is variadic then ignore the last one for now.
         auto num_params = fn->num_params() - (fn->is_variadic() ? 1 : 0);
-
         std::vector<Operand> resolved_actuals(num_params, Operand(nullptr));
+
+        if(!fn->is_variadic()) {
+            if(actuals.size() > fn->num_params()) {
+                report(call_pos, "unexpected number of parameters, %u given, %u expected",
+                        actuals.size(), fn->num_params());
+                return std::make_tuple(resolved_actuals, false);
+            }
+        }
+
         u64 actual_count = 0;
         for(u32 i = 0; i < num_params; ++i) {
             ast::Expr* actual = actuals[i].get();
@@ -1455,7 +1487,7 @@ namespace mu {
                         auto expr_type = resolve_expr(binded_expr, param_type);
 
                         if(expr_type.error)
-                            return false;
+                            return std::make_tuple(resolved_actuals, false);
 
                         auto index = fn->get_index_of_param(param->as<Local>());
                         if(resolved_actuals[index].error)
@@ -1465,14 +1497,16 @@ namespace mu {
                             report(name->pos, "attempting to rebind a parameter '%s'", name->value().c_str());
                             interp->message("originally bound here:");
                             interp->print_file_section(resolved_actuals[index].expr->pos());
-                            return false;
+                            return std::make_tuple(resolved_actuals, false);
+//                            return false;
                         }
                     }
                     else {
                         report(name->pos, "function '%s' does not have parameter '%s'",
                                fn->get_name()->value().c_str(),
                                name->value().c_str());
-                        return false;
+                        return std::make_tuple(resolved_actuals, false);
+//                        return false;
                     }
                 } break;
                 default: {
@@ -1483,7 +1517,8 @@ namespace mu {
 
                     // if there was an error resolving the expression, the return an error operand.
                     if(expr.error)
-                        return false;
+                        return std::make_tuple(resolved_actuals, false);
+//                        return false;
 
                     if(resolved_actuals[actual_count].error) {
                         resolved_actuals[actual_count] = expr;
@@ -1494,7 +1529,8 @@ namespace mu {
                                 fn->get_param(actual_count)->get_name()->value().c_str());
                         interp->message("originally bound here:");
                         interp->print_file_section(resolved_actuals[actual_count].expr->pos());
-                        return false;
+                        return std::make_tuple(resolved_actuals, false);
+//                        return false;
                     }
                 }
             }
@@ -1520,7 +1556,8 @@ namespace mu {
                 }
                 else {
                     report(call_pos, "field '%s' is not initialized", local_param->get_name()->value().c_str());
-                    return false;
+                    return std::make_tuple(resolved_actuals, false);
+//                    return false;
                 }
             }
         }
@@ -1528,8 +1565,74 @@ namespace mu {
         // how could resolved_actuals be used later one?
         // right now it is a book keeping structure that is discarded when the function returns.
         // the values are stored in the ast though..
+        if(fn->is_variadic()) {
+            // the variadic param must be the last one.
+            auto vparam =  fn->get_param(fn->num_params() - 1);
+            assert(vparam and vparam->is_local());
 
-        return true;
+            auto plocal = vparam->as<Local>();
+
+            types::Type* expected_type = nullptr;
+            if(plocal->is_typevariadic()) {
+               expected_type = plocal->get_type();
+            }
+
+            for(u32 i = num_params; i < actuals.size(); ++i) {
+                auto operand = resolve_expr(actuals[i].get(), expected_type);
+                if(operand.error) {
+                    return std::make_tuple(resolved_actuals, false);
+                }
+                resolved_actuals.push_back(operand);
+            }
+        }
+
+        return std::make_tuple(resolved_actuals, true);
+    }
+
+    std::tuple<std::vector<Operand>, bool>
+    Typer::resolve_actauls(types::FunctionType *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
+//        if(!fn->is_variadic()) {
+//            if(actuals.size() > fn->num_params()) {
+//                report(call_pos, "unexpected number of parameters, %u given, %u expected",
+//                       actuals.size(), fn->num_params());
+//                return std::make_tuple(resolved_actuals, false);
+//            }
+//        }
+        std::vector<Operand> resolved_actuals;
+
+        if(fn->num_params() != actuals.size()) {
+            report(call_pos, "unexpected number of parameters, expected %u, recieved %u", fn->num_params(), actuals.size());
+            return std::make_tuple(resolved_actuals, false);
+        }
+        u32 param_count = 0;
+        for(auto& actual : actuals) {
+            switch(actual->kind) {
+                case ast::ast_expr_binding: {
+                    report(call_pos, "unable to resolve parameter binding of a function pointer with type '%s'", fn->str().c_str());
+                    return std::make_tuple(resolved_actuals, false);
+                } break;
+                default: {
+                    // gets the expected member of the struct considering where it is
+                    // in the expresion list.
+                    auto param_type = fn->get_param(param_count);
+                    auto expr = resolve_expr(actual.get(), param_type);
+
+                    // if there was an error resolving the expression, the return an error operand.
+                    if(expr.error)
+                        return std::make_tuple(resolved_actuals, false);
+//                        return false;
+                    resolved_actuals.push_back(expr);
+                }
+            }
+
+            param_count++;
+        }
+
+        // now the member fields have been filled with the expressions given by the structure expression.
+
+        // all parameters have been filled
+
+        return std::make_tuple(resolved_actuals, true);
     }
 
     Operand Typer::resolve_call_or_curry(ast::Call *expr) {
@@ -1538,22 +1641,73 @@ namespace mu {
         if(function->is_function()) {
             auto fn_entity = function->as<Function>();
 
-            auto valid = resolve_call_actuals(fn_entity, expr->actuals, expr->pos());
+            auto [actuals, valid] = resolve_call_actuals(fn_entity, expr->actuals, expr->pos());
 
             if(valid) {
                 auto ret_type = fn_entity->get_ret_type();
                 return Operand(ret_type, expr, RValue);
             }
             else {
+                // TODO: check if curried functions is paractial in the scope of this language.
                return Operand(expr);
             }
         }
-        else {
-            report(expr->pos(), "attempting to call a non-function type, type found: '%s'", function->get_type()->str().c_str());
-            return Operand(expr);
-        }
+        else if(function->is_variable()) {
+            auto type = function->get_type();
+            if(type->is_function()) {
+                auto fn_type = type->as<types::FunctionType>();
+                auto [actuals, valid] = resolve_actauls(fn_type, expr->actuals, expr->pos());
+                if(valid) {
+                    auto ret_type = fn_type->get_ret();
+                    return Operand(ret_type, expr, RValue);
+                }
+                else {
+                    // TODO: check if curried functions is paractial in the scope of this language.
+                    return Operand(expr);
+                }
+            }
+            else if(type->is_array()) {
+                // TODO: Refactor this to be idiomatic
+                // The array type [f32; ..] will actually implement a trait
+                // called Apply[Index < Unsigned] which allows for the type to treated as a function.
+                // the trait will require the parameter to be an unsigned integer
+                // it will be simulated here.
 
+                // If there are zero actuals or there are more than 1
+                if(expr->actuals.size() == 0 or expr->actuals.size() > 1) {
+                    report(expr->pos(), "unexpected number of parameters, expected %u, recieved %u", (u64) 1, expr->actuals.size());
+                    return Operand(expr);
+                }
+
+                auto result = resolve_expr(expr->actuals.front().get());
+                if(result.error) {
+                    return result;
+                }
+                auto type = result.type;
+                if(type->is_integer() and type->is_unsigned()) {
+                    auto array_type = type->as<types::Array>();
+                    return Operand(array_type->base_type(), expr, LValue);
+                }
+                else {
+                    report(expr->actuals.front()->pos(), "expecting an unsigned integer as array index, found '%s'", type->str().c_str());
+                    return Operand(expr);
+                }
+            }
+        }
+        report(expr->pos(), "attempting to call a non-function type, type found: '%s'", function->get_type()->str().c_str());
+        return Operand(expr);
+    }
+
+    Operand Typer::resolve_cast(ast::Cast *expr) {
         return Operand(nullptr, nullptr, LValue);
+    }
+
+    Operand Typer::resolve_block(ast::Expr *expr) {
+        auto block = expr->as<ast::Block>();
+
+        for(auto stmt : block->elements) {
+
+        }
     }
 
     // Some of my spec resolution can be reduced to resolving expression.
@@ -1593,7 +1747,9 @@ namespace mu {
                 }
                 return interp->checked_new_type<types::Tuple>(types, sz, types.front()->alignment());
             }
-            case ast::ast_list_spec:
+            case ast::ast_list_spec: {
+
+            }
             case ast::ast_list_spec_dyn:
                 break;
             case ast::ast_ptr: {
@@ -1630,6 +1786,17 @@ namespace mu {
                 //
             case ast::ast_procedure_spec: {
                 auto p = spec->as<ast::ProcedureSpec>();
+                std::vector<types::Type*> params;
+                types::Type* ret_type = resolve_spec(p->ret.get());
+                for(auto pa : p->params) {
+                    auto t = resolve_spec(pa.get());
+                    if(t) params.push_back(t);
+                    else {
+                        // the error should have been reported.
+                        return nullptr;
+                    }
+                }
+                return interp->checked_new_type<types::FunctionType>(params, ret_type);
             } break;
             case ast::ast_type_lit:
                 return nullptr;
@@ -1644,26 +1811,15 @@ namespace mu {
     }
 
     Entity *Typer::resolve_expr_spec(ast::Expr *expr) {
-        switch(expr->kind) {
-            case ast::ast_accessor: {
-                auto e = expr->as<ast::Accessor>();
-                return resolve_accessor_spec(e);
-            } break;
-            case ast::ast_name: {
-                auto e = expr->as<ast::Name>();
-                return search_active_scope(e->name);
-            } break;
-            case ast::ast_name_generic: {
-                auto e = expr->as<ast::NameGeneric>();
-                interp->message("Generics is not implemented");
-                // resolves the name and 
-                return nullptr;
-            } break;
-            default:
-                report_str(expr->pos(), "invalid type expression");
-                return nullptr;
+        auto entity = resolve_expr_to_entity(expr);
+
+        if(entity and entity->is_type()) {
+            return entity;
         }
-        return nullptr;
+        else {
+            report_str(expr->pos(), "invalid type expression");
+            return nullptr;
+        }
     }
 
     Entity* Typer::resolve_accessor_spec(ast::Accessor* expr) {
@@ -1712,5 +1868,13 @@ namespace mu {
                     expr->name->value().c_str(), entity->get_name()->value().c_str())
         }
         return entity;
+    }
+
+    void Typer::resolve_stmt(ast::Stmt *stmt) {
+
+    }
+
+    void Typer::resolve_decl_stmt(ast::DeclStmt *stmt) {
+
     }
 }

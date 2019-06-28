@@ -19,6 +19,12 @@ namespace io {
         IODirectory
     };
 
+    enum IoStatus {
+        FileOk,
+        FileDoesntExist,
+        FileMissPermissions,
+    };
+
     class Path {
     public:     
         Path(const std::string& path);

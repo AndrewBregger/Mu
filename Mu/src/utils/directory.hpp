@@ -26,15 +26,15 @@ namespace io {
 
         bool contain(u64 hash);
 
-        std::tuple<IO*, bool> find(const Path& p);
+        std::tuple<IO*, IoStatus> find(const Path& p);
 
-        std::tuple<IO*, bool> find(u64 id);
+        std::tuple<IO*, IoStatus> find(u64 id);
 
         // searches for a name in this directory
-        std::tuple<IO*, bool> search(const std::string& name, bool ignore_extension = false);
+        std::tuple<IO*, IoStatus> search(const std::string& name, bool ignore_extension = false);
 
         // expecting the name to be relative to the this directory
-        std::tuple<IO*, bool> search(const Path& name, bool ignore_extension = false);
+        std::tuple<IO*, IoStatus> search(const Path& name, bool ignore_extension = false);
 
     private:
         std::unordered_map<u64, IO*> content;

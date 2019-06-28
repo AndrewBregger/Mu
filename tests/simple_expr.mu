@@ -8,9 +8,18 @@ Bar: struct {
     y u8
 }
 
-add: (x f32, y f32) f32 = x + y
+main: () {
+    let foo = Foo {x: true, y: 1.0}
+    foo.x
+}
 
-// addFloat: (x f32, y f32) = add(x, y)
+// addFloat: (x f32, y f32) = add2(x, 1)
+// addFloat: (f32, f32) = add // this would be cool i guess, it would be more similar to haskell then rust/c++
+// I guess if this is really desired then just make it a global; let addFloat = add
+
+// add2: (f32) = add(2)
+// I have no idea how to achieve this right now.
+// add2: (f32) = (+2)
 
 // sample printf foreign function
 // @abi("C")
