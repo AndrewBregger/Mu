@@ -140,7 +140,7 @@ namespace mu {
         std::vector<ast::DeclPtr> impl_blocks;
         for(auto& decl : *main_module) {
             if(decl->kind == ast::ast_impl)
-                impl_blocks.push_back(decl)
+                impl_blocks.push_back(decl);
             else {
                 auto entity = build_top_level_entity(decl);
                 add_entity(entity);

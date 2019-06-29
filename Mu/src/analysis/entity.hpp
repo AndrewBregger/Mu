@@ -181,6 +181,7 @@ namespace mu {
         CVariadic = 64,
         TypeVariadic = 128,
         PolyVariadic = 256,
+        IsSelf = 512,
     };
 
     class Local : public Entity {
@@ -197,26 +198,28 @@ namespace mu {
 
         std::string str() override;
 
-        inline bool is_mutable() { return flags & Mutable; }
-        inline bool is_initialized() { return flags & Initialized; }
-        inline bool is_visable() { return flags & Visible; }
-        inline bool is_member() { return flags & IsMember; }
-        inline bool is_parameter() { return flags & IsParameter; }
+        inline bool is_mutable()        { return flags & Mutable; }
+        inline bool is_initialized()    { return flags & Initialized; }
+        inline bool is_visable()        { return flags & Visible; }
+        inline bool is_member()         { return flags & IsMember; }
+        inline bool is_parameter()      { return flags & IsParameter; }
         inline bool is_visibility_inherited() { return flags & InheritVisibility; }
-        inline bool is_cvariadic() { return flags & CVariadic; }
-        inline bool is_typevariadic() { return flags & TypeVariadic; }
-        inline bool is_polyvariadic() { return flags & PolyVariadic; }
+        inline bool is_cvariadic()      { return flags & CVariadic; }
+        inline bool is_typevariadic()   { return flags & TypeVariadic; }
+        inline bool is_polyvariadic()   { return flags & PolyVariadic; }
+        inline bool is_self()           { return flags & IsSelf; }
 
-        inline void set_mutable() { flags |= Mutable; }
-        inline void set_initialized() { flags |= Initialized; }
-        inline void set_visable() { flags |= Visible; }
-        inline void set_parameter() { flags |= IsParameter; }
+        inline void set_mutable()       { flags |= Mutable; }
+        inline void set_initialized()   { flags |= Initialized; }
+        inline void set_visable()       { flags |= Visible; }
+        inline void set_parameter()     { flags |= IsParameter; }
 
-        inline void set_cvariadic()    { flags |= CVariadic; }
-        inline void set_typevariadic() { flags |= TypeVariadic; }
-        inline void set_polyvariadic() { flags |= PolyVariadic; }
+        inline void set_cvariadic()     { flags |= CVariadic; }
+        inline void set_typevariadic()  { flags |= TypeVariadic; }
+        inline void set_polyvariadic()  { flags |= PolyVariadic; }
+        inline void set_self()          { flags |= IsSelf; }
 
-        inline void set_inherit_visibility() { flags |- InheritVisibility; }
+        inline void set_inherit_visibility() { flags |= InheritVisibility; }
 
         inline void set_member(u32 offset) {
             this->offset = offset;
