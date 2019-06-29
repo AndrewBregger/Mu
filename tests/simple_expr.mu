@@ -8,9 +8,11 @@ Bar: struct {
     y u8
 }
 
+impl Foo {
+
+}
+
 main: () {
-    let t = (1.0, false)
-    let (x, y) = t
 }
 
 // addFloat: (x f32, y f32) = add2(x, 1)

@@ -317,6 +317,10 @@ namespace mu {
 
         void debug_print(std::ostream& out) override;
 
+        void add_impl(ast::DeclPtr decl);
+        inline const std::vector<ast::DeclPtr>& get_impls() { return impl_blocks; }
+    private:
+        std::vector<ast::DeclPtr> impl_blocks;
     };
 
     enum FunctionFlags : u32 {
@@ -324,6 +328,8 @@ namespace mu {
         InlineFunction = 2,
         NoBody = 4,
         Variadic = 8,
+        Method = 16, // this is called through an instance
+        Static = 32, // this is called from the struct itself.
     };
 
     class Function : public Entity {
@@ -353,11 +359,15 @@ namespace mu {
         inline bool is_inline() { return flags & InlineFunction; }
         inline bool no_body() { return flags & NoBody; }
         inline bool is_variadic() { return flags & Variadic; }
+        inline bool is_static() { return flags & Static; }
+        inline bool is_method() { return flags & Method; }
         inline void set_foreign(const std::string &name) {
             foreign_name = name;
             flags |= ForeignFunction;
         }
 
+        inline void set_method() { flags |= Method; }
+        inline void set_static() { flags |= Static; }
         inline void set_variadic() { flags |= Variadic; }
         inline void set_inline() { flags |= InlineFunction; }
         inline void set_no_body() { flags |= NoBody; }

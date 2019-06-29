@@ -90,6 +90,8 @@ namespace mu {
             Entity* resolve_struct(Type* entity, ast::DeclPtr decl_ptr);
             Entity* resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr);
 
+            bool resolve_impl_blocks(Type* entity);
+
             // this function builds the local pramameters and generates the function type to be used by the entity.
             std::tuple<std::vector<Local *>, bool> resolve_function_members(ast::ProcedureSigniture *sig);
 

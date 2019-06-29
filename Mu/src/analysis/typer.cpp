@@ -137,10 +137,30 @@ namespace mu {
 
 
         std::vector<Entity*> entities;
+        std::vector<ast::DeclPtr> impl_blocks;
         for(auto& decl : *main_module) {
-            auto entity = build_top_level_entity(decl);
-            add_entity(entity);
-            entities.emplace_back(entity);
+            if(decl->kind == ast::ast_impl)
+                impl_blocks.push_back(decl)
+            else {
+                auto entity = build_top_level_entity(decl);
+                add_entity(entity);
+                entities.emplace_back(entity);
+            }
+        }
+
+        for(auto& block : impl_blocks) {
+            auto name = block->as<ast::Impl>()->name;
+            auto type_entity = search_active_scope(name);
+
+            if(type_entity->is_type()) {
+                auto type = type_entity->as<Type>();
+                type->add_impl(block);
+            }
+            else {
+                report(name->pos, "'%s' doesn't return to a type", name->value().c_str());
+                // there is an error, no point in continuing.
+                return nullptr;
+            }
         }
 
         for(auto entity : entities) {
@@ -427,11 +447,25 @@ namespace mu {
                     }
                 } break;
                 case ast::ast_self_parameter: {
+                    // I havent thought about mutability in method calls
+                    // possibly add mut self and self as possible parameters
                     auto p = param->as<ast::SelfParameter>();
                     if(!is_first) {
                         report_str(param->pos(), "self must be the first parameter");
                         return std::make_tuple(params, false);
                     }
+                    if(!context.impl_block_entity) {
+                        report_str(param->pos(), "unable to resolve the self parameter");
+                        interp->message("This is primarily due function not being in an impl block");
+                        return std::make_tuple(params, false);
+                    }
+                    auto type = context.impl_block_entity->get_type();
+                    auto ident = new ast::Ident(interp->find_name("self"), p->pos());
+                    auto local = interp->new_entity<Local>(ident, nullptr, Reference, active_scope(), param);
+                    local->resolve_to(type);
+                    local->set_parameter();
+                    local->set_initialized();
+                    params.push_back(local);
                 } break;
                 // because of how the parser works for the variadic parameters
                 // the name pattern must be an identifier.
@@ -670,6 +704,11 @@ namespace mu {
 
         push_scope(member_scope);
 
+        // maybe the self type is added at the beginning or it could be added
+        // at first use.
+//        ast::Ident self_type = ast::Ident(interp->find_name("Self"), mu::Pos());
+//        member_scope->insert(&self_type, entity);
+
         std::vector<Entity*> members;
 
         for(auto local : decl->members) {
@@ -705,12 +744,58 @@ namespace mu {
 
         entity->resolve_to(type);
 
+        resolve_impl_blocks(entity);
+
         pop_scope();
         return entity;
     }
 
     Entity* Typer::resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr) {
         return entity;
+    }
+
+    bool Typer::resolve_impl_blocks(Type *entity) {
+        push_context_state(impl_block_entity, entity)
+
+        std::vector<Function*> function_entities;
+
+        for(auto block : entity->get_impls()) {
+            assert(block->kind == ast::ast_impl);
+
+            auto impl = block->as<ast::Impl>();
+
+            // add all functions from the impl blocks into scope of the type.
+            for(auto decl : impl->methods) {
+                switch(decl->kind) {
+                    case ast::ast_procedure: {
+                        auto proc = decl->as<ast::Procedure>();
+                        auto function = interp->new_entity<Function>(proc->name, active_scope(), decl);
+                        function_entities.push_back(function);
+                        if(is_redeclaration(function->get_name())) {
+                            report(decl->pos(), "redefinition of name '%s' in '%s' member scope",
+                                    proc->name->value().c_str(),
+                                    entity->get_name()->value().c_str());
+                            return false;
+                        }
+                        else
+                            add_entity(function);
+                    } break;
+                    case ast::ast_trait_element_type:
+                        // i do not know how to implement this yet.
+                        break;
+                    default:
+                        interp->fatal("Compiler Error: Invalid decl in impl block");
+                        break;
+                }
+            }
+        }
+
+        for(auto fn : function_entities) {
+            resolve_entity(fn);
+        }
+
+
+        pop_context_state(impl_block_entity)
     }
 
 //    Entity* Typer::resolve_function(Type* entity, ast::DeclPtr decl_ptr) {

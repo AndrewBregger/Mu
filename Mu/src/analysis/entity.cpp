@@ -408,6 +408,10 @@ namespace mu {
             return false;
     }
 
+    void Type::add_impl(ast::DeclPtr decl) {
+        impl_blocks.push_back(decl);
+    }
+
 
     Module::Module(ast::Ident *name, types::Type *type, ScopePtr exproted_scope_ptr, ScopePtr p, ast::DeclPtr decl) :
         Entity(name, p, ModuleEntity, decl), exported_scope_ptr(exproted_scope_ptr){
