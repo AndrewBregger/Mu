@@ -297,8 +297,10 @@ ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
     ast::ExprPtr expr;
     if(check(mu::Tkn_Identifier))
         expr = parse_name();
-    else
+    else {
         expr = ast::make_expr<ast::Self>(current().pos());
+        advance();
+    }
 
     if(check(mu::Tkn_OpenParen) or check(mu::Tkn_OpenBrace)) {
         ast::ExprPtr temp; // this is stupid
@@ -1352,7 +1354,9 @@ ast::DeclPtr mu::Parser::parse_impl(ast::Ident *name, ast::Visibility vis) {
     auto [_, valid] = expect(mu::Tkn_OpenBracket);
     remove_newlines();
 
-    auto members = many<ast::DeclPtr>(
+    std::vector<ast::DeclPtr> members;
+    if(!check(mu::Tkn_CloseBracket)) {
+      members = many<ast::DeclPtr>(
             [this]() {
                 ast::AttributeList attributes({});
                 if(check(mu::Tkn_At)) {
@@ -1378,6 +1382,8 @@ ast::DeclPtr mu::Parser::parse_impl(ast::Ident *name, ast::Visibility vis) {
             },
             Parser::append<ast::DeclPtr>
             );
+    }
+
     for(auto& m : members)
         if(m)
             pos.extend(m->pos());

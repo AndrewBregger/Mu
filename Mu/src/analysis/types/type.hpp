@@ -6,7 +6,6 @@
 #define MU_TYPE_HPP
 
 //#include <llvm/IR/Type.h>
-
 #include "common.hpp"
 #include "parser/ast/ast_common.hpp"
 #include "analysis/scope.hpp"
@@ -168,7 +167,6 @@ namespace mu {
             Ty* as() {
                 return const_cast<Ty*>(const_cast<const Type&>(*this).template as<Ty>());
             }
-
 
 
         private:

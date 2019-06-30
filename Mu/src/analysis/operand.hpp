@@ -20,6 +20,7 @@ namespace mu {
         RValue, // result value
         TypeAccess, // the result is a type.
         FunctionAccess, // the result of the expression is a function pointer.
+        SelfAccess,
     };
 
     // the result of an expression

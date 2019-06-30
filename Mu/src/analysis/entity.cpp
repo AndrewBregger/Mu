@@ -299,6 +299,11 @@ namespace mu {
     void Function::debug_print(std::ostream& out) {
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
+        out << "\tmethod: " << (is_method() ? "true" : "false") << std::endl;
+        out << "\tstatic: " << (is_static()? "true" : "false") << std::endl;
+        out << "\tforeign: " << (is_foreign() ? "true" : "false") << std::endl;
+        out << "\tinline: " << (is_inline() ? "true" : "false") << std::endl;
+        out << "\tno body: " << (no_body() ? "true" : "false") << std::endl;
         out << "\tparams: [" << std::endl;
         for(auto e : params) {
             e->debug_print(out);

@@ -148,7 +148,7 @@ std::string mu::types::Reference::str() {
 }
 
 mu::types::Type *mu::types::Reference::base_type() {
-    return base;
+    return base->base_type();
 }
 
 bool mu::types::Reference::is_mutable() {
@@ -167,7 +167,7 @@ std::string mu::types::Array::str() {
 }
 
 mu::types::Type *mu::types::Array::base_type() {
-    return type;
+    return this;
 }
 
 mu::types::Mutable::Mutable(mu::types::Type* &type) : Type(MutableType, type->size(), type->alignment()),
@@ -181,7 +181,7 @@ std::string mu::types::Mutable::str() {
 }
 
 mu::types::Type *mu::types::Mutable::base_type() {
-    return type;
+    return type->base_type();
 }
 
 mu::types::Tuple::Tuple(std::vector<mu::types::Type*> &types, u64 sz, u64 align) :

@@ -459,12 +459,14 @@ namespace mu {
                         interp->message("This is primarily due function not being in an impl block");
                         return std::make_tuple(params, false);
                     }
-                    auto type = context.impl_block_entity->get_type();
+                    auto type = interp->checked_new_type<types::Reference>(context.impl_block_entity->get_type());
                     auto ident = new ast::Ident(interp->find_name("self"), p->pos());
                     auto local = interp->new_entity<Local>(ident, nullptr, Reference, active_scope(), param);
                     local->resolve_to(type);
                     local->set_parameter();
                     local->set_initialized();
+                    local->set_self();
+                    add_entity(local);
                     params.push_back(local);
                 } break;
                 // because of how the parser works for the variadic parameters
@@ -521,6 +523,11 @@ namespace mu {
     }
 
     Entity *Typer::resolve(Function *funct) {
+        if(context.impl_block_entity) {
+          interp->out_stream() << "Resolving method for: " << context.impl_block_entity->get_name()->value() << std::endl;
+          interp->out_stream() << "\tMethod Name: " << funct->get_name()->value() << std::endl;
+        }
+
         auto function_decl = funct->get_decl_as<ast::Procedure>();
         ast::Ident *foreign_name{nullptr};
 
@@ -538,19 +545,21 @@ namespace mu {
         std::vector<types::Type*> param_types;
         if(!valid) {
             // the error has already been reported.
+            interp->message("There was an error processing members");
+            for(auto p : params)
+              p->debug_print(interp->out_stream());
             return nullptr;
         }
 
-        bool is_variadic = false;
 
         for(auto e : params) {
             if(e->is_cvariadic() || e->is_typevariadic() || e->is_polyvariadic())
-                is_variadic = true;
+              funct->set_variadic();
+
             param_types.emplace_back(e->get_type());
         }
 
-        if(is_variadic)
-            funct->set_variadic();
+
 
         funct->set_param_info(params, params_scope);
 
@@ -608,11 +617,25 @@ namespace mu {
 
         for(auto p : params) {
             if(!p->is_used()) {
-                interp->print_file_pos(p->get_decl()->pos());
-                interp->message("parameter '%s' is not used", p->get_name()->value().c_str());
-                interp->print_file_section(p->get_decl()->pos());
+              // maybe refactor this to a warning interp call
+              interp->print_file_pos(p->get_decl()->pos());
+              interp->message("parameter '%s' is not used", p->get_name()->value().c_str());
+              interp->print_file_section(p->get_decl()->pos());
             }
         }
+    
+        // if we are resolving an impl block
+        if(context.impl_block_entity) {
+          if(params.size() >= 1)
+            // since the first parameter is a self, then this is a method.
+            if(params.front()->is_self())
+              funct->set_method();
+          // since this is a impl block function and the first parameter is not a self
+          // this is a static function
+          if(!funct->is_method())
+            funct->set_static();
+        }
+
         auto type = interp->checked_new_type<types::FunctionType>(param_types, ret_type);
         funct->resolve_to(type);
         return funct;
@@ -791,7 +814,9 @@ namespace mu {
         }
 
         for(auto fn : function_entities) {
-            resolve_entity(fn);
+            auto e = resolve_entity(fn);
+            if(e) e->debug_print(interp->out_stream()); 
+            else interp->out_stream() << "There was an error resolving function" << std::endl;
         }
 
 
@@ -996,6 +1021,15 @@ namespace mu {
                 entity = resolve_accessor_spec(accessor);
                 break;
             }
+            case ast::ast_self_expr: {
+                if(!context.impl_block_entity) {
+                  report_str(expr->pos(), "use of 'self' outside of an impl block");
+                  return nullptr;
+                }
+                // I am doing it this way because the type have have modifiers.
+                auto self_name = ast::Ident(interp->find_name("self"), expr->pos());
+                entity = search_active_scope(&self_name);
+           } break;
             default:
                 resolve_expr(expr);
                 return nullptr;
@@ -1064,6 +1098,15 @@ namespace mu {
             case ast::ast_block:
                 result = resolve_block(expr);
                 break;
+            case ast::ast_self_expr: {
+                auto entity = resolve_expr_to_entity(expr);
+                if(entity)
+                  result = Operand(entity->get_type(), expr, SelfAccess);
+                else  {
+                  report_str(expr->pos(), "failed to resolve self")
+                    return Operand(expr);
+                }
+            }
             default:
                 break;
         }
@@ -1382,12 +1425,21 @@ namespace mu {
 
         auto type = operand.type;
 
+        interp->message("Accessor type: %s", type->str().c_str());
+        // if type is a reference or pointer, then they must be dereferenced.
+        if(type->is_ptr() || type->is_ref()) {
+            type = type->base_type();
+        }
+
+
+
         // I will allow trait and sum types to be included.
         bool allowed_types = type->is_struct(); // || type->is_trait() || type->is_stype();
 
         if(!allowed_types) {
             /// @TODO-Define: non-accessable
-            report(operand.expr->pos(), "request for member '%s' in non-accessable type: '%s'", type->str().c_str()); 
+            report(operand.expr->pos(), "request for member '%s' in non-accessable type: '%s'", type->str().c_str(),
+                    type->str().c_str())
             operand.error = true;
             return operand;
         }
@@ -1428,7 +1480,7 @@ namespace mu {
                     default:
                         if(entity->is_local()) {
                             auto local = entity->as<Local>();
-                            if(local->is_visable())
+                            if(local->is_visable() || access == SelfAccess)
                                 return Operand(entity->get_type(), expr, access);
                             else {
                                 report(expr->pos(), "unable to access private member '%s' of struct '%s'", entity->get_name()->value().c_str(),
@@ -1449,7 +1501,7 @@ namespace mu {
                             // report(accessor->name->pos, "unable to access method")
                         }
                         else {
-                            report_str(expr->pos(), "invalid accessor expression: this is probably a compiler bug");
+                           report_str(expr->pos(), "invalid accessor expression: this is probably a compiler bug");
                             return Operand(expr);
                         }
                 }

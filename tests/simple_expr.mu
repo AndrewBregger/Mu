@@ -1,5 +1,5 @@
 Foo: struct {
-    pub x bool,
+    x bool,
     y f32
 }
 
@@ -8,7 +8,11 @@ Bar: struct {
     y u8
 }
 
-impl Foo {
+Foo: impl {
+  new: () Foo = Foo { true, 1.0 }
+
+  get_x: (self) = self.x
+  get_y: (self) = self.y
 
 }
 
