@@ -459,7 +459,13 @@ namespace mu {
                         interp->message("This is primarily due function not being in an impl block");
                         return std::make_tuple(params, false);
                     }
-                    auto type = interp->checked_new_type<types::Reference>(context.impl_block_entity->get_type());
+                    types::Type* mut = nullptr;
+                    if(p->mut)
+                        mut = interp->checked_new_type<types::Mutable>(context.impl_block_entity->get_type());
+                    else
+                        mut = context.impl_block_entity->get_type();
+
+                    auto type = interp->checked_new_type<types::Reference>(mut);
                     auto ident = new ast::Ident(interp->find_name("self"), p->pos());
                     auto local = interp->new_entity<Local>(ident, nullptr, Reference, active_scope(), param);
                     local->resolve_to(type);
@@ -1897,7 +1903,7 @@ namespace mu {
 
     Operand Typer::resolve_block(ast::Expr *expr) {
         auto block = expr->as<ast::Block>();
-        Operand res(expr);
+        auto res = Operand(type_unit, expr, RValue);
 
         // build the scope for the block
         auto scope = make_scope<BlockScope>(expr, active_scope());

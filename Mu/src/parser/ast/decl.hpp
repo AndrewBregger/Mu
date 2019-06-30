@@ -109,7 +109,9 @@ namespace ast {
     };
 
     struct SelfParameter : public Decl {
-        SelfParameter(const mu::Pos& pos);
+        bool mut;
+
+        SelfParameter(bool mut, const mu::Pos &pos);
 
         virtual ~SelfParameter() = default;
         void renderer(AstRenderer* renderer) override;

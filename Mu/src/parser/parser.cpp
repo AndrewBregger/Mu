@@ -660,10 +660,16 @@ ast::AttributeList mu::Parser::parse_attributes() {
 }
 
 ast::DeclPtr mu::Parser::parse_procedure_parameter() {
-    if(check(mu::Tkn_Self)) {
-        auto self = current();
-        advance();
-        return ast::make_decl<ast::SelfParameter>(self.pos());
+    if(check(mu::Tkn_Mut) or check(mu::Tkn_Self)) {
+        bool mut = allow(mu::Tkn_Mut);
+        auto [self, valid] = expect(mu::Tkn_Self);
+        if(valid)
+            return ast::make_decl<ast::SelfParameter>(mut, self.pos());
+        else {
+            if(mut)
+                report(current().pos(), "expecting 'self' following mut keyword in parameter");
+            return nullptr;
+        }
     }
     else {
         auto pattern = parse_pattern(false);

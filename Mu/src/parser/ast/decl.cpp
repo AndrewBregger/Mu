@@ -48,7 +48,7 @@ namespace ast {
             init(std::move(init)) {
     }
 
-    SelfParameter::SelfParameter(const mu::Pos &pos) : Decl(ast_self_parameter, pos) {}
+    SelfParameter::SelfParameter(bool mut, const mu::Pos &pos) : Decl(ast_self_parameter, pos), mut(mut) {}
 
     CVariadicParameter::CVariadicParameter(PatternPtr pattern, const mu::Pos &pos) : Decl(ast_c_variadic, pos),
         pattern(std::move(pattern)) {

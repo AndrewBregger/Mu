@@ -614,6 +614,9 @@ void ast::AstRenderer::render(ProcedureParameter *node) {
 void ast::AstRenderer::render(SelfParameter *node) {
     render_indent();
     stream << "Self Parameter";
+    if(all) {
+        stream << "("  << (node->mut ? "mutable" : "constant") << ")";
+    }
     stream << std::endl;
 }
 
