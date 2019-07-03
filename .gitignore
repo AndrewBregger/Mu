@@ -34,3 +34,12 @@ bin_Debug_x64/*
 *.exe
 *.out
 *.app
+
+# Vim extensions
+.clang_complete
+
+# Editor Files
+.vs
+.vscode
+.idea
+

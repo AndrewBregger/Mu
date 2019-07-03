@@ -1,15 +1,11 @@
 Immediate Tasks:
-Impl Block Resolution
-    How to attach the impl block to a structure such that
-    it gets resolved after the structure?
+Method call expressions
 
 Next Tasks:
 Fix the function type spec parsing
     it current is (...) -> ret
     it needs to be (...) ret
     This is because it coincides with how functions are declared.
-Method call expressions
-Local resolution
 Trait resolution for structure
 Casting
 Control Flow (If, While, Loop)
@@ -18,5 +14,15 @@ Preliminary String implementation
 Preliminary Iterator implementation
 For loops using the iterators.
 Range based for loops
+Expand pattern resolution
 Simple Code Generation (LLVM / Custom VM)
 Examine if curried functions is practical in the scope of this language.
+
+Done:
+Scanner
+Parser
+Arithmetic type checking for primatives
+Struct resolution
+Impl block resolution
+Stmt resolution {expr, decl, empty}
+Local resolution
