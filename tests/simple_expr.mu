@@ -9,14 +9,16 @@ Bar: struct {
 }
 
 Foo: impl {
-  new: () Foo = Foo { true, 1.0 }
+    new: () Foo = Foo { true, 1.0 }
 
-  get_x: (self) = self.x
-  get_y: (self) = self.y
-
+    get_x: (self) = self.x
+    get_y: (self) = self.y
+    get_y: (self) = self.y
 }
 
 main: () {
+    let foo = Foo.new()
+    let x = foo.get_x()
 }
 
 // addFloat: (x f32, y f32) = add2(x, 1)

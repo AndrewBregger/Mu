@@ -197,7 +197,7 @@ ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
 
 ast::ExprPtr mu::Parser::parse_unary() {
 	auto token = current();
-	switch(token.pos()) {
+	switch(token.kind()) {
 		case mu::Tkn_Minus:
 		case mu::Tkn_Tilde:
 		case mu::Tkn_Bang:
@@ -214,20 +214,23 @@ ast::ExprPtr mu::Parser::parse_unary() {
 }
 
 ast::ExprPtr mu::Parser::try_struct_expr(ast::ExprPtr operand) {
+    // re-evaluate this.
+    bool is_self = operand->kind == ast::ast_self_type;
+
     if(is_self and !check(mu::Tkn_OpenBracket)) {
         report(current().pos(), "'Self' must be followed by '{' in an expression");
-        return expr;
+        return nullptr;
     }
 
     if(check_restriction(mu::NoStructExpr) and is_self) {
-        report(token.pos(), "'Self' is not a valid expression, perhaps 'self' was desired");
-        return expr;
+        report(current().pos(), "'Self' is not a valid expression, perhaps 'self' was desired");
+        return nullptr;
     }
 
     if(!check_restriction(mu::NoStructExpr) and allow(mu::Tkn_OpenBracket)) {
         remove_newlines();
 
-        auto spec = (is_self ? ast::make_spec<ast::SelfSpec>(token.pos()) : ast::make_spec<ast::ExprSpec>(expr, expr->pos()));
+        auto spec = (is_self ? ast::make_spec<ast::SelfSpec>(operand->pos()) : ast::make_spec<ast::ExprSpec>(operand, operand->pos()));
         auto pos = spec->pos();
         pos.span++;
 
@@ -264,7 +267,7 @@ ast::ExprPtr mu::Parser::try_struct_expr(ast::ExprPtr operand) {
         expect(mu::Tkn_CloseBracket);
         return ast::make_expr<ast::StructExpr>(spec, members, pos);
     }
-    else return expr;
+    else return operand;
 }
 
 ast::ExprPtr mu::Parser::parse_primary_expr() {
@@ -281,29 +284,40 @@ ast::ExprPtr mu::Parser::parse_bottom_expr() {
 	auto token = current();
 
 	switch(token.kind()) {
+	    case mu::Tkn_Identifier:
+	        return parse_name();
         case mu::Tkn_IntLiteral:
+            advance();;
             return ast::make_expr<ast::Integer>(token.integer, token.pos());
         case mu::Tkn_FloatLiteral:
+            advance();;
             return ast::make_expr<ast::Float>(token.floating, token.pos());
         case mu::Tkn_CharLiteral:
+            advance();;
             return ast::make_expr<ast::Char>(token.character, token.pos());
         case mu::Tkn_StringLiteral:
+            advance();;
             return ast::make_expr<ast::Str>(token.str, token.pos());
         case mu::Tkn_Nil:
+            advance();;
             return ast::make_expr<ast::Nil>(token.pos());
         case mu::Tkn_True:
         case mu::Tkn_False:
+            advance();;
             return ast::make_expr<ast::Bool>(token.kind() == mu::Tkn_True, token.pos());
         case mu::Tkn_Unit:
+            advance();;
             return ast::make_expr<ast::Unit>(token.pos());
 		case mu::Tkn_Self:
-			return ast::make_expr<ast::SelfExpr>(token.pos());
+            advance();;
+			return ast::make_expr<ast::Self>(token.pos());
 		case mu::Tkn_OpenBracket: {
 			auto pos = token.pos();
 			std::vector<ast::StmtPtr> elements;
+            advance();;
 			if(!check(mu::Tkn_CloseBracket)) {
 				many<ast::StmtPtr>([this]() {
-					std::cout << current() << std::endl;
+//					std::cout << current() << std::endl;
 					auto stmt = parse_stmt();
 					return stmt;
 				}, [this]() {
@@ -379,7 +393,8 @@ ast::ExprPtr mu::Parser::parse_bottom_expr() {
 }
 
 ast::ExprPtr mu::Parser::try_tuple_or_expr() {
-    auto pos = token.pos();
+    auto pos = current().pos();
+    advance();
 
     auto expr = parse_expr();
     std::vector<ast::ExprPtr> elements = {expr};
@@ -494,7 +509,8 @@ ast::ExprPtr mu::Parser::parse_arm() {
 }
 
 ast::ExprPtr mu::Parser::parse_lambda() {
-    auto pos = token.pos();
+    auto pos = current().pos();
+    advance();
 
     auto params = many<ast::DeclPtr>(
             [this]() {
@@ -531,8 +547,8 @@ ast::ExprPtr mu::Parser::parse_lambda() {
 }
 
 ast::ExprPtr mu::Parser::parse_compound_literal() {
-	auto pos = token.pos();
-	
+	auto pos = current().pos();
+
 	advance();
 	auto first = parse_expr();
 	
@@ -584,7 +600,7 @@ ast::ExprPtr mu::Parser::parse_compound_literal() {
 }
 
 ast::ExprPtr mu::Parser::parse_for() {
-    passert(token.kind() == mu::Tkn_For);
+    passert(current().kind() == mu::Tkn_For);
 
     auto pos = current().pos();
     advance();
@@ -613,7 +629,7 @@ ast::ExprPtr mu::Parser::parse_for() {
 }
 
 ast::ExprPtr mu::Parser::parse_if() {
-    switch(token.kind()) {
+    switch(current().kind()) {
         case mu::Tkn_If:
         case mu::Tkn_Elif: {
             advance();
@@ -630,10 +646,8 @@ ast::ExprPtr mu::Parser::parse_if() {
 //                    advance(true);
 
                 auto tok = current();
-
-                auto else_if = lud(parser, tok);
-
-                auto pos = token.pos();
+                auto else_if = parse_if();
+                auto pos = tok.pos();
                 pos.extend(cond->pos())
                         .extend(body->pos())
                         .extend(tok.pos());
@@ -644,7 +658,7 @@ ast::ExprPtr mu::Parser::parse_if() {
                 return ast::make_expr<ast::If>(cond, body, else_if, pos);
             }
             else {
-                report(current().pos(), "expecting '{' in %s expression", token.get_string().c_str());
+                report(current().pos(), "expecting '{' following if condition expression");
             }
         }
         case mu::Tkn_Else: {
