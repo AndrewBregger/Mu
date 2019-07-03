@@ -22,6 +22,7 @@ class Interpreter;
 #include "parser/ast/decl.hpp"
 #include "parser/ast/specs.hpp"
 #include "parser/ast/pattern.hpp"
+#include "parser/ast/renderer.hpp"
 
 
 namespace mu {
@@ -150,6 +151,8 @@ namespace mu {
 
             Operand resolve_call_or_curry(ast::Call* expr);
 
+			Operand resolve_method_call(ast::Expr* expr);
+
             // a wrapper for 'resolve_name_expr' and 'resolve_name_generic_expr'
             Operand resolve_name(ast::Expr* expr);
 
@@ -224,6 +227,8 @@ namespace mu {
             Context context;
 
             u32 errors_num{0};              // the number of errors
+
+            ast::AstRenderer renderer;
     };
 }
 

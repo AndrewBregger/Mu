@@ -25,6 +25,8 @@ typedef double f64;
 // for unicode support
 typedef u32 rune;
 
+#define MU_DEBUG
+
 #ifndef CAST_PTR
     #define CAST_PTR(Type, expr) static_cast<Type*>(expr)
 #endif

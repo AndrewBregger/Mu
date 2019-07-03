@@ -53,7 +53,7 @@ extern mu::types::Type* type_string;
 namespace mu {
 
 
-    Typer::Typer(Interpreter *interp) : interp(interp), prelude(interp->get_prelude()) {
+    Typer::Typer(Interpreter *interp) : interp(interp), prelude(interp->get_prelude()), renderer(true, interp->out_stream()) {
     }
 
     void Typer::increment_error() {
@@ -1112,13 +1112,17 @@ namespace mu {
                   report_str(expr->pos(), "failed to resolve self")
                     return Operand(expr);
                 }
+
             }
+			case ast::ast_method: {
+				result = resolve_method_call(expr);
+ 		}
             default:
                 break;
         }
 
         if(expected_type) {
-            // check for compatibility of the resulting type and the expected type.
+            // check for compatibility of thr resulting type and the expected type.
              if(!compatible_types(expected_type, result.type)) {
                  report(expr->pos(), "incompitable type: '%s' expected: '%s'",
                      result.type->str().c_str(),
@@ -1129,6 +1133,12 @@ namespace mu {
 
         expr->type = result.type;
         expr->operand = result;
+
+//#if defined(MU_DEBUG)
+        interp->out_stream() << "*****************DEBUG: Expression Resulting type" << std::endl;
+        expr->renderer(&renderer);
+        interp->out_stream() << "*****************DEBUG: TYPE: " << (result.type ? result.type->str() : "Error") << std::endl;
+//#endif
 
         return result;
     }
@@ -1179,7 +1189,7 @@ namespace mu {
         }
         else if(!invalid_lhs and rhs_type->is_arithmetic() and rhs_type->is_primative()) {
             switch(op) {
-                // standard arithmitic
+               // standard arithmitic
                 case mu::Tkn_Plus:
                 case mu::Tkn_Minus:
                 case mu::Tkn_Astrick:
@@ -1897,6 +1907,68 @@ namespace mu {
         return Operand(expr);
     }
 
+	Operand Typer::resolve_method_call(ast::Expr* expr) {
+		Operand result(expr);
+		auto method = expr->as<ast::Method>();
+		// resolve to the entity because we need to know scope when resolving it.
+		auto operand_entity = resolve_expr_to_entity(method->operand.get());
+		auto entity_type = operand_entity->get_type();
+
+		interp->message("Found Entity Name: %s", operand_entity->get_name()->value().c_str());
+		interp->message("Found Entity Type: %s", operand_entity->get_type()->str().c_str());
+
+		while(1) {}
+
+		auto name = method->name->as<ast::Name>();
+
+		if(!name) {
+			report_str(method->name->pos(), "generics are not implemented at this time");
+			return result;
+		}
+		
+		ScopePtr member_scope;
+
+		
+		// check the type of the resolved entity
+		switch(entity_type->kind()) {
+			case types::StructureType: {
+				auto type = entity_type->as<types::StructType>();
+				member_scope = type->get_scope();
+			} break;
+			case types::SType: {
+				// special case
+				//auto type = entity_type->as<
+				interp->message("Accessing sum type as a call, this is calling a constructor of a sum type element");
+				return result;
+			}
+			case types::TraitAttributeType: {
+				// directly access a method of a triat shouldn't be allowed. Unless it has a default implementation.
+				interp->message("Accessing a triat type. to call its method. This shouldn't be allowed");
+			} break;
+			default:
+				report(method->operand->pos(), "'%s' is a non-accessable type: '%s'",
+					operand_entity->get_name()->value().c_str(),
+					entity_type->str().c_str());
+				break;
+					
+		}
+
+		auto member = search_scope(member_scope, name->name);
+
+		// switch(member->kind) {
+		// 	case LocalEntity: {
+		// 		report(name->pos(), "unable to call '%s' of type '%s'",
+		// 				member->get_name()->value().c_str(),
+		// 				member->get_type()->str().c_str());
+		// 	}
+		// 	case FunctionEntity:
+		// 	default:
+		// }
+
+		 
+		return result;
+	}
+
     Operand Typer::resolve_cast(ast::Cast *expr) {
         return Operand(nullptr, nullptr, LValue);
     }
@@ -2041,7 +2113,7 @@ namespace mu {
         // if there was an error above then propogate it through the rest.
         if(!root_entity) return nullptr;
 
-        ScopePtr  scope = nullptr;
+        ScopePtr scope;
         switch(root_entity->kind()) {
             case mu::ModuleEntity: {
                 auto mod = CAST_PTR(Module, root_entity);
@@ -2078,7 +2150,7 @@ namespace mu {
         auto entity = search_scope(scope, expr->name);                    
         if(!entity) {
             report(expr->name->pos, "'%s' is not a member of '%s'",
-                    expr->name->value().c_str(), entity->get_name()->value().c_str())
+                    expr->name->value().c_str(), entity->get_name()->value().c_str());
         }
         return entity;
     }

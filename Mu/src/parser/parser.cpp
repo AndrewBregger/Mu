@@ -175,7 +175,7 @@ ast::ExprPtr mu::Parser::parse_expr() {
 
 ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
 
-    auto expr = parse_primary_expr();
+    auto expr = parse_unary();
 
     if(!expr)
         return expr;
@@ -195,46 +195,476 @@ ast::ExprPtr mu::Parser::parse_expr(i32 prec_min) {
     return expr;
 }
 
-ast::ExprPtr mu::Parser::parse_primary_expr() {
-    auto token = current();
-    auto parser = grammar.get_prefix(token);
-    if(!parser) {
-        report(token.pos(), "unexpected token '%s'", token.get_string().c_str());
-        return nullptr;
-    }
-
-    auto expr = parser->lud(*this, token);
-
-    if(check(mu::Tkn_Period)) {
-        auto parser = grammar.get_infix(current());
-        expr = parser->lud(*this, expr, current());
-    }
-
-    return expr;
+ast::ExprPtr mu::Parser::parse_unary() {
+	auto token = current();
+	switch(token.pos()) {
+		case mu::Tkn_Minus:
+		case mu::Tkn_Tilde:
+		case mu::Tkn_Bang:
+		case mu::Tkn_Ampersand:
+		case mu::Tkn_Astrick: {
+			advance();
+			auto pos = token.pos();
+			auto expr = parse_unary();
+			return ast::make_expr<ast::Unary>(token.kind(), expr, pos.extend(expr->pos()));
+		}
+		default:
+			return parse_primary_expr();
+	}
 }
 
-ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::ExprPtr operand) {
-    std::vector<ast::SpecPtr> type_parameters;
-    std::vector<ast::ExprPtr> actuals;
-    auto pos = (name ? name->pos() : operand->pos());
+ast::ExprPtr mu::Parser::try_struct_expr(ast::ExprPtr operand) {
+    if(is_self and !check(mu::Tkn_OpenBracket)) {
+        report(current().pos(), "'Self' must be followed by '{' in an expression");
+        return expr;
+    }
 
-    if(allow(mu::Tkn_OpenBrace)) {
-        type_parameters = many<ast::SpecPtr>(
+    if(check_restriction(mu::NoStructExpr) and is_self) {
+        report(token.pos(), "'Self' is not a valid expression, perhaps 'self' was desired");
+        return expr;
+    }
+
+    if(!check_restriction(mu::NoStructExpr) and allow(mu::Tkn_OpenBracket)) {
+        remove_newlines();
+
+        auto spec = (is_self ? ast::make_spec<ast::SelfSpec>(token.pos()) : ast::make_spec<ast::ExprSpec>(expr, expr->pos()));
+        auto pos = spec->pos();
+        pos.span++;
+
+        std::vector<ast::ExprPtr> members;
+        if(!check(mu::Tkn_CloseBracket)) {
+            members = many<ast::ExprPtr>(
                     [this]() {
-                        return parse_spec(false);
+                        if (check(mu::Tkn_Identifier) and peek().kind() == mu::Tkn_Colon) {
+                            auto token = current();
+                            auto pos = token.pos();
+                            advance();
+                            advance();
+                            pos.span++;
+                            auto expr = parse_expr();
+                            pos.extend(expr->pos());
+                            return ast::make_expr<ast::BindingExpr>(token.ident, expr, pos);
+                        } else {
+                            return parse_expr();
+                        }
+                    },
+                    [this]() {
+                        remove_newlines();
+                        bool val = allow(mu::Tkn_Comma);
+                        remove_newlines();
+                        if (val and check(mu::Tkn_CloseBracket)) {
+                            report(current().pos(), "expecting expression following comma");
+                            return false;
+                        }
+                        return val;
+                    },
+                    mu::Parser::append<ast::ExprPtr>
+            );
+        }
+        expect(mu::Tkn_CloseBracket);
+        return ast::make_expr<ast::StructExpr>(spec, members, pos);
+    }
+    else return expr;
+}
+
+ast::ExprPtr mu::Parser::parse_primary_expr() {
+	auto expr = parse_bottom_expr();
+	
+
+    while(check(mu::Tkn_Period))
+        expr = parse_suffix(expr, false);
+
+    return try_struct_expr(expr);
+}
+
+ast::ExprPtr mu::Parser::parse_bottom_expr() {
+	auto token = current();
+
+	switch(token.kind()) {
+        case mu::Tkn_IntLiteral:
+            return ast::make_expr<ast::Integer>(token.integer, token.pos());
+        case mu::Tkn_FloatLiteral:
+            return ast::make_expr<ast::Float>(token.floating, token.pos());
+        case mu::Tkn_CharLiteral:
+            return ast::make_expr<ast::Char>(token.character, token.pos());
+        case mu::Tkn_StringLiteral:
+            return ast::make_expr<ast::Str>(token.str, token.pos());
+        case mu::Tkn_Nil:
+            return ast::make_expr<ast::Nil>(token.pos());
+        case mu::Tkn_True:
+        case mu::Tkn_False:
+            return ast::make_expr<ast::Bool>(token.kind() == mu::Tkn_True, token.pos());
+        case mu::Tkn_Unit:
+            return ast::make_expr<ast::Unit>(token.pos());
+		case mu::Tkn_Self:
+			return ast::make_expr<ast::SelfExpr>(token.pos());
+		case mu::Tkn_OpenBracket: {
+			auto pos = token.pos();
+			std::vector<ast::StmtPtr> elements;
+			if(!check(mu::Tkn_CloseBracket)) {
+				many<ast::StmtPtr>([this]() {
+					std::cout << current() << std::endl;
+					auto stmt = parse_stmt();
+					return stmt;
+				}, [this]() {
+					return !check(mu::Tkn_CloseBracket);
+				}, [&pos, &elements](std::vector<ast::StmtPtr> &, ast::StmtPtr stmt) {
+					mu::Parser::append(elements, stmt);
+					pos.extend(stmt->pos());
+				});
+			}
+
+			pos.extend(current().pos());
+			expect(mu::Tkn_CloseBracket);
+
+			return ast::make_expr<ast::Block>(std::move(elements), pos);
+		}
+		case mu::Tkn_OpenBrace:
+			return parse_compound_literal();
+		case mu::Tkn_OpenParen:
+			return try_tuple_or_expr();
+		case mu::Tkn_Defer: {
+			auto [_, valid] = expect(mu::Tkn_Defer);
+			if(valid) {
+				auto expr = parse_expr();
+				if(expr)
+					return ast::make_expr<ast::Defer>(expr, token.position.extend(expr->pos()));
+				else
+					return expr;
+			}
+			else return ast::ExprPtr();
+		}
+		case mu::Tkn_For:
+			return parse_for();
+		case mu::Tkn_If:
+			return parse_if();
+		case mu::Tkn_BackSlash:
+			return parse_lambda();
+		case mu::Tkn_Return: {
+			advance();
+			auto pos = token.pos();
+
+			if(check(mu::Tkn_NewLine)) {
+				auto expr = parse_expr();
+				return ast::make_expr<ast::Return>(expr, pos.extend(expr->pos()));
+			}
+			else
+				return ast::make_expr<ast::Return>(ast::ExprPtr(), token.pos());
+		}
+		case mu::Tkn_While: {
+			advance();
+
+			push_restriction(mu::NoStructExpr);
+			auto cond = parse_expr();
+			pop_restriction();
+
+			if(check(mu::Tkn_OpenBracket)) {
+				auto body = parse_expr();
+
+				auto pos = token.pos();
+				pos.extend(cond->pos());
+				pos.extend(body->pos());
+
+				return ast::make_expr<ast::While>(cond, body, pos);
+			}
+			else {
+				report(current().pos(), "expecting '{' in %s expression", token.get_string().c_str());
+				return nullptr;
+			}
+		}
+		default:
+			report(token.pos(), "unexpected token '%s'", token.get_string().c_str());
+			return nullptr;
+	}
+}
+
+ast::ExprPtr mu::Parser::try_tuple_or_expr() {
+    auto pos = token.pos();
+
+    auto expr = parse_expr();
+    std::vector<ast::ExprPtr> elements = {expr};
+    pos.extend(expr->pos());
+
+    if(allow(mu::Tkn_Comma)) {
+        pos.span += 1;
+
+        many<ast::ExprPtr>(
+                    [this]() {
+                        return parse_expr();
                     },
                     [this]() {
                         bool val = allow(mu::Tkn_Comma);
-                        if(val and check(mu::Tkn_CloseBrace)) {
-                            report(current().pos(), "expecting type following ','");
+                        if(val and check(mu::Tkn_CloseParen)) {
+                            report(current().pos(), "expecting expression following ',', found ')");
                             return false;
                         }
-                        return val and !check(mu::Tkn_CloseBrace);
+                        return val;
                     },
-                    Parser::append<ast::SpecPtr>
+                    [this, &pos, &elements](std::vector<ast::ExprPtr>&, ast::ExprPtr expr) {
+                        if(expr) {
+                            elements.push_back(expr);
+                            pos.extend(expr->pos());
+                        }
+                    }
                 );
-        expect(mu::Tkn_CloseBrace);
     }
+    expect(mu::Tkn_CloseParen);
+    pos.span += 1;
+
+    switch(elements.size()) {
+        case 1:
+            return elements.front();
+        default:
+            return ast::make_expr<ast::TupleExpr>(elements, pos);
+    }
+}
+
+ast::ExprPtr mu::Parser::parse_match() {
+    auto pos = current().pos();
+
+    advance();
+    push_restriction(mu::NoStructExpr);
+    auto condition = parse_expr();
+    pop_restriction();
+
+    pos.extend(condition->pos());
+
+    remove_newlines();
+    expect(mu::Tkn_OpenBracket);
+    remove_newlines();
+    pos.span += 1;
+
+    auto arms = many<ast::ExprPtr>(
+                [this]() {
+                    return parse_arm();
+                },
+                [this]() {
+                    bool val = allow(mu::Tkn_Comma);
+                    remove_newlines();
+                    if(val and check(mu::Tkn_CloseBracket)) {
+                        return false;
+                    }
+                    return val;
+                },
+                Parser::append<ast::ExprPtr>
+            );
+
+    for(auto& a : arms)
+        pos.extend(a->pos());
+
+    expect(mu::Tkn_CloseBracket);
+    pos.span += 1;
+
+    return ast::make_expr<ast::Match>(condition, arms, pos);
+}
+
+ast::ExprPtr mu::Parser::parse_arm() {
+    auto pos = current().pos();
+    pos.span = 0;
+
+    auto patterns = many<ast::PatternPtr>(
+                [this]() {
+                    return parse_pattern(false);
+                },
+                [this]() {
+                    remove_newlines();
+                    bool val = allow(mu::Tkn_Pipe);
+                    remove_newlines();
+                    if(val and check(mu::Tkn_Arrow)) {
+                        report(current().pos(), "expecting pattern following '|'");
+                        return false;
+                    }
+                    return val;
+                },
+                mu::Parser::append<ast::PatternPtr>
+            );
+
+    for(auto& p : patterns)
+        pos.extend(p->pos());
+
+    auto [_, valid] = expect(mu::Tkn_Arrow);
+    if(valid) {
+        auto body = parse_expr();
+        return ast::make_expr<ast::MatchArm>(patterns, body, pos);
+    }
+    else {
+        ast::ExprPtr expr;
+        return expr;
+    }
+}
+
+ast::ExprPtr mu::Parser::parse_lambda() {
+    auto pos = token.pos();
+
+    auto params = many<ast::DeclPtr>(
+            [this]() {
+                return parse_procedure_parameter();
+            },
+            [this]() {
+                return allow(mu::Tkn_Comma);
+            },
+            mu::Parser::append<ast::DeclPtr>
+        );
+
+    for(auto& p : params)
+        pos.extend(p->pos());
+
+    ast::SpecPtr ret;
+    if(allow(mu::Tkn_Colon))
+        ret = parse_spec(false);
+    else
+        ret = ast::make_spec<ast::InferSpec>(current().pos());
+
+    pos.extend(ret->pos());
+
+    auto [_, valid] = expect(mu::Tkn_MinusGreater);
+
+    if(valid) {
+        auto body = parse_expr();
+        pos.extend(body->pos());
+
+        return ast::make_expr<ast::Lambda>(params, ret, body, pos);
+    }
+    else {
+        return ast::ExprPtr();
+    }
+}
+
+ast::ExprPtr mu::Parser::parse_compound_literal() {
+	auto pos = token.pos();
+	
+	advance();
+	auto first = parse_expr();
+	
+	auto condition =
+			[this]() {
+				return allow(mu::Tkn_Comma) and !check(mu::Tkn_CloseBrace);
+			};
+	
+	if(allow(mu::Tkn_Colon)) {
+		auto second = parse_expr();
+		std::vector<std::tuple<ast::ExprPtr, ast::ExprPtr>> elements;
+		elements.emplace_back(first, second);
+	
+		many<std::tuple<ast::ExprPtr, ast::ExprPtr>>(
+				[this]() {
+					auto key = parse_expr();
+					expect(mu::Tkn_Colon);
+					auto value = parse_expr();
+					return std::make_tuple(key, value);
+				},
+				condition,
+				[&pos, &elements](std::vector<std::tuple<ast::ExprPtr, ast::ExprPtr>>&,
+						std::tuple<ast::ExprPtr, ast::ExprPtr> element) {
+					elements.push_back(element);
+					pos.extend(std::get<0>(element)->pos());
+					pos.extend(std::get<1>(element)->pos());
+				}
+		);
+		expect(mu::Tkn_CloseBrace);
+		return ast::make_expr<ast::Map>(elements, pos);
+	}
+	else {
+		std::vector<ast::ExprPtr> elements = {first};
+		many<ast::ExprPtr>(
+				[this]() {
+					return parse_expr();
+				},
+				condition,
+				[&pos, &elements](std::vector<ast::ExprPtr>&,
+								  ast::ExprPtr element) {
+					elements.push_back(element);
+					pos.extend(element->pos());
+				}
+		);
+		pos.extend(expect(mu::Tkn_CloseBrace).first.pos());
+	
+		return ast::make_expr<ast::List>(elements, pos);
+	}
+}
+
+ast::ExprPtr mu::Parser::parse_for() {
+    passert(token.kind() == mu::Tkn_For);
+
+    auto pos = current().pos();
+    advance();
+
+    auto pattern = parse_pattern(false);
+    pos.extend(pattern->pos());
+
+    if(pattern)
+        return ast::ExprPtr();
+
+    push_restriction(mu::NoStructExpr);
+    auto expr = parse_expr();
+    pop_restriction();
+    pos.extend(expr->pos());
+
+    remove_newlines();
+    if(check(mu::Tkn_OpenBracket)) {
+        auto body = parse_expr();
+        pos.extend(body->pos());
+        return ast::make_expr<ast::For>(pattern, expr, body, pos);
+    }
+    else {
+        report(current().pos(), "expecting '{' for expression body");
+        return ast::ExprPtr();
+    }
+}
+
+ast::ExprPtr mu::Parser::parse_if() {
+    switch(token.kind()) {
+        case mu::Tkn_If:
+        case mu::Tkn_Elif: {
+            advance();
+
+            auto cond = parse_expr();
+
+            if(check(mu::Tkn_OpenBracket)) {
+                push_restriction(mu::NoStructExpr);
+                auto body = parse_expr();
+                pop_restriction();
+
+                remove_newlines();
+//                if(check(mu::Tkn_NewLine))
+//                    advance(true);
+
+                auto tok = current();
+
+                auto else_if = lud(parser, tok);
+
+                auto pos = token.pos();
+                pos.extend(cond->pos())
+                        .extend(body->pos())
+                        .extend(tok.pos());
+
+                if(else_if)
+                    pos.extend(else_if->pos());
+
+                return ast::make_expr<ast::If>(cond, body, else_if, pos);
+            }
+            else {
+                report(current().pos(), "expecting '{' in %s expression", token.get_string().c_str());
+            }
+        }
+        case mu::Tkn_Else: {
+            advance();
+            if(check(mu::Tkn_OpenBracket)) {
+                return parse_expr();
+            }
+            else {
+                report(current().pos(), "expecting '{' in else branch");
+            }
+        }
+        default:
+            return nullptr;
+    }
+}
+
+ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token) {
+    std::vector<ast::SpecPtr> type_parameters;
+    std::vector<ast::ExprPtr> actuals;
+	auto pos = name->pos();
 
     if(allow(mu::Tkn_OpenParen)) {
         actuals = many<ast::ExprPtr>([this]() {
@@ -271,25 +701,13 @@ ast::ExprPtr mu::Parser::parse_call(ast::ExprPtr& name, mu::Token token, ast::Ex
             }
         });
     }
-    else {
-        report(current().pos(), "expecting '(' or '[', found '%s'",current().get_string().c_str());
-        return operand;
-    }
-
     auto [_, valid] = expect(mu::Tkn_CloseParen);
     if(!valid)
         return nullptr;
 
-    if(name) {
-        auto p = operand->pos();
-        p.extend(pos);
-        return ast::make_expr<ast::Method>(operand, name, actuals, p);
-    }
-    else {
-        auto p = operand->pos();
-        p.extend(pos);
-        return ast::make_expr<ast::Call>(operand, actuals, p);
-    }
+	auto p = name->pos();
+	p.extend(pos);
+	return ast::make_expr<ast::Call>(name, actuals, p);
 }
 
 ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
@@ -302,10 +720,8 @@ ast::ExprPtr mu::Parser::parse_expr_spec(bool is_spec) {
         advance();
     }
 
-    if(check(mu::Tkn_OpenParen) or check(mu::Tkn_OpenBrace)) {
-        ast::ExprPtr temp; // this is stupid
-        expr = parse_call(temp, current(), expr);
-    }
+    if(check(mu::Tkn_OpenParen))
+        expr = parse_call(expr, current());
 
     if(check(mu::Tkn_Period)) {
         auto parser = grammar.get_infix(current());
@@ -359,11 +775,11 @@ ast::ExprPtr mu::Parser::parse_suffix(ast::ExprPtr& expr, bool is_spec) {
         auto name = current().ident;
         auto element = parse_name();
 
-        if(check(mu::Tkn_OpenParen)) {
+        if(peek().kind() == mu::Tkn_OpenParen) {
 //            if(is_spec) {
 //                report(expr->pos(), "unexpected '(' in type expression");
 //            }
-            return parse_call(element, current(), expr);
+            return parse_method(expr, element, current());
         }
         else {
 //            if(!is_spec and expr->kind == ast::ast_name_generic) {
@@ -395,6 +811,61 @@ ast::ExprPtr mu::Parser::parse_suffix(ast::ExprPtr& expr, bool is_spec) {
         return expr;
     }
 }
+
+ast::ExprPtr mu::Parser::parse_method(ast::ExprPtr operand, ast::ExprPtr name,
+		Token token) {
+    std::vector<ast::ExprPtr> actuals;
+	auto pos = operand->pos();
+	pos.extend(name->pos());
+	bool error = false;
+
+    if(allow(mu::Tkn_OpenParen)) {
+        actuals = many<ast::ExprPtr>([this]() {
+            if(check(mu::Tkn_Identifier)) {
+                if(peek().kind() == mu::Tkn_Colon) {
+                    auto ident = current();
+                    auto pos = ident.pos();
+
+                    advance(); // identifier
+                    pos.extend(current().pos());
+
+                    advance(); // colon
+
+                    auto expr = parse_expr();
+                    pos.extend(expr->pos());
+
+                    return ast::make_expr<ast::BindingExpr>(ident.ident, expr, pos);
+                }
+            }
+            auto expr = parse_expr();
+            return expr;
+        }, [this]() {
+            remove_newlines();
+            bool val = allow(mu::Tkn_Comma);
+            remove_newlines();
+            return val;
+        }, [&pos, this, &error](auto& results, ast::ExprPtr expr) {
+            if(expr) {
+                Parser::append<ast::ExprPtr>(results, expr);
+                pos.extend(expr->pos());
+            }
+            else {
+                report(current().pos(), "expecting an expression following ','");
+				error = true;
+            }
+        });
+    }
+    auto [_, valid] = expect(mu::Tkn_CloseParen);
+
+	if(error)  return nullptr;
+    if(!valid) return nullptr;
+	
+	// for ( ) 
+	pos.span += 2;
+	
+	return ast::make_expr<ast::Method>(operand, name, actuals, pos);
+}
+
 
 ast::StmtPtr mu::Parser::parse_stmt() {
     if(check(mu::Tkn_Let) or check(mu::Tkn_Mut) or check(mu::Tkn_At) or

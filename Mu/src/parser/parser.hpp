@@ -50,10 +50,11 @@ namespace mu {
         template <bool r = true, typename... Args>
         void report(const mu::Pos& pos, const std::string& fmt, Args... args) {
             interp->report_error(pos, fmt, args...);
-
-            if(r and !sync_after_error()) {
-                interp->fatal("unrecoverable syntax error");
-            }
+			
+			interp->quit();
+            // if(r and !sync_after_error()) {
+            //     interp->fatal("unrecoverable syntax error");
+            // }
 
             ++error_count;
         }
@@ -95,7 +96,11 @@ namespace mu {
 
         ast::ExprPtr parse_primary_expr();
 
-        ast::ExprPtr parse_call(ast::ExprPtr& name, Token token, ast::ExprPtr operand = nullptr);
+		ast::ExprPtr parse_bottom_expr();
+
+        ast::ExprPtr parse_call(ast::ExprPtr& name, Token token);
+
+		ast::ExprPtr parse_method(ast::ExprPtr operand, ast::ExprPtr name, Token token);
 
         ast::ExprPtr parse_expr_spec(bool is_spec);
 
@@ -103,7 +108,27 @@ namespace mu {
 
         ast::ExprPtr parse_name();
 
-        // stmt parsing
+		ast::ExprPtr parse_unary();
+
+		ast::ExprPtr try_struct_expr(ast::ExprPtr operand);
+
+		ast::ExprPtr try_tuple_or_expr(); 
+
+		ast::ExprPtr parse_compound_literal();
+
+		ast::ExprPtr parse_for();
+
+		ast::ExprPtr parse_if();
+
+		ast::ExprPtr parse_lambda();
+	
+		ast::ExprPtr parse_match();
+
+		ast::ExprPtr parse_arm();
+
+
+
+		// stmt parsing
         ast::StmtPtr parse_stmt();
 
         ast::DeclPtr parse_toplevel();

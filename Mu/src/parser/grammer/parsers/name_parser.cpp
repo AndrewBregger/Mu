@@ -30,6 +30,8 @@ ast::ExprPtr parse::NameParser::lud(mu::Parser &parser, mu::Token token) {
     }
 
     if(!parser.check_restriction(mu::NoStructExpr) and parser.allow(mu::Tkn_OpenBracket)) {
+        parser.remove_newlines();
+
         auto spec = (is_self ? ast::make_spec<ast::SelfSpec>(token.pos()) : ast::make_spec<ast::ExprSpec>(expr, expr->pos()));
         auto pos = spec->pos();
         pos.span++;
@@ -52,7 +54,9 @@ ast::ExprPtr parse::NameParser::lud(mu::Parser &parser, mu::Token token) {
                         }
                     },
                     [&parser]() {
+                        parser.remove_newlines();
                         bool val = parser.allow(mu::Tkn_Comma);
+                        parser.remove_newlines();
                         if (val and parser.check(mu::Tkn_CloseBracket)) {
                             parser.report(parser.current().pos(), "expecting expression following comma");
                             return false;
