@@ -1,23 +1,28 @@
 Foo: struct {
-    x bool,
-    y f32
+    x bool = true,
+    y f32 = 1.0
 }
 
-Bar: struct {
-    foo Foo,
-    y u8
-}
+// Bar: struct {
+//     foo Foo,
+//     y u8
+// }
 
 Foo: impl {
     new: () Foo = Foo { true, 1.0 }
 
     get_x: (self) = self.x
     get_y: (self) = self.y
-    get_y: (self) = self.y
+
+	as_ref: (self) = self
+	as_mut: (mut self) = self
+
+	clone: (self) = Foo {self.x, self.y}
 }
 
 main: () {
-    let foo = Foo.new()
+    // let foo = Foo.new()
+    let y = Foo.new()
     let x = foo.get_x()
 }
 

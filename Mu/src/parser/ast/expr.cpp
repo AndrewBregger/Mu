@@ -148,9 +148,10 @@ namespace ast {
         TupleAcessor::~TupleAcessor() = default;
 
 
-        Method::Method(ExprPtr& operand, ExprPtr& name, const std::vector<ExprPtr>& actuals, const mu::Pos& pos): Expr(ast_method, pos),
-                                                                                                          operand(std::move(operand)),
-                                                                                                          name(std::move(name)), actuals(std::move(actuals)) {}
+        Method::Method(ExprPtr expr, ExprPtr name, const std::vector<ExprPtr>& actuals, const mu::Pos& pos):
+			Expr(ast_method, pos), expr(std::move(expr)),
+			name(std::move(name)), actuals(actuals) {}
+
         Method::~Method() = default;
 
         Cast::Cast(ExprPtr& operand, SpecPtr& type, const mu::Pos& pos) :

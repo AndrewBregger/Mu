@@ -108,7 +108,7 @@ namespace mu {
 
             void resolve_local_from_decl(ast::DeclPtr decl_ptr, bool mut);
 
-            std::vector<Local*> resolve_member_variable(ast::DeclPtr decl_ptr);
+			std::tuple<std::vector<Local*>, bool> resolve_member_variable(ast::DeclPtr decl_ptr);
 
             // resolves an expression that is expected to return an entity.
             // Null if it fails.

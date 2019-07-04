@@ -227,7 +227,7 @@ void ast::AstRenderer::render(Method *node) {
     stream << "Method Call";
     stream << std::endl;
     indent();
-    node->operand->renderer(this);
+    node->expr->renderer(this);
     indent();
     node->name->renderer(this);
     unindent();

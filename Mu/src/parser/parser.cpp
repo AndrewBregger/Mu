@@ -821,12 +821,13 @@ ast::ExprPtr mu::Parser::parse_suffix(ast::ExprPtr& expr, bool is_spec) {
 
 ast::ExprPtr mu::Parser::parse_method(ast::ExprPtr operand, ast::ExprPtr name,
 		Token token) {
-    std::vector<ast::ExprPtr> actuals;
+
 	auto pos = operand->pos();
 	pos.extend(name->pos());
 	bool error = false;
 
     if(allow(mu::Tkn_OpenParen)) {
+		std::vector<ast::ExprPtr> actuals;
 		if(!check(mu::Tkn_CloseParen)) {
 			actuals = many<ast::ExprPtr>([this]() {
 				if(check(mu::Tkn_Identifier)) {
@@ -874,7 +875,26 @@ ast::ExprPtr mu::Parser::parse_method(ast::ExprPtr operand, ast::ExprPtr name,
 		
 		return ast::make_expr<ast::Method>(operand, name, actuals, pos);
     }
-	return operand;
+	else {
+		ast::Ident* n = nullptr;	
+		switch(name->kind) {
+			case ast::ast_name: {
+				auto nexpr = name->as<ast::Name>();
+				n = nexpr->name;
+			} break;
+			case ast::ast_name_generic: {
+				report(name->pos(), "invalid accessor generic accessor name");
+				return ast::ExprPtr();
+			}
+			default: {
+				report(name->pos(), "invalid accessor");
+				return ast::ExprPtr();
+			}
+		}
+
+
+		return ast::make_expr<ast::Accessor>(operand, n, pos);
+	}
 }
 
 

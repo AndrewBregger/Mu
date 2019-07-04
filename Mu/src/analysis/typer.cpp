@@ -65,6 +65,7 @@ namespace mu {
     }
 
     AddressType Typer::get_addressing_by_type(types::Type* type) {
+		if(!type) return AddressType::Value;
         if(type->is_array() || type->is_ptr() || type->is_ref() || type->is_function()) 
             return AddressType::Reference;
         else
@@ -743,11 +744,12 @@ namespace mu {
         for(auto local : decl->members) {
             switch(local->kind) {
                 case ast::ast_member_variable: {
-                    auto entities = resolve_member_variable(local);
+                    auto [entities, valid] = resolve_member_variable(local);
                     // there was an error resolving the members
-                    if(entities.empty())
-                        return nullptr;
-
+					if(!valid) {
+						interp->message("There was an error with member");
+						return nullptr;
+					}
                     for(auto e : entities)
                         members.emplace_back(e);
                     break;
@@ -772,11 +774,17 @@ namespace mu {
         }
 
         entity->resolve_to(type);
+		interp->message("Resolving Impl Blocks");
 
-        resolve_impl_blocks(entity);
-
-        pop_scope();
-        return entity;
+        if(resolve_impl_blocks(entity)) {
+			pop_scope();
+			interp->message("Finished resolving %s", entity->get_name()->value().c_str());
+			return entity;
+		}
+		else {
+			pop_scope();
+			return nullptr;
+		}
     }
 
     Entity* Typer::resolve_poly_struct(Type* entity, ast::DeclPtr decl_ptr) {
@@ -787,7 +795,8 @@ namespace mu {
         push_context_state(impl_block_entity, entity)
 
         std::vector<Function*> function_entities;
-
+		
+		interp->message("Collecting methods");
         for(auto block : entity->get_impls()) {
             assert(block->kind == ast::ast_impl);
 
@@ -806,19 +815,22 @@ namespace mu {
                                     entity->get_name()->value().c_str());
                             return false;
                         }
-                        else
+                        else {
+							interp->message("Adding %s", function->get_name()->value().c_str());
                             add_entity(function);
+						}
                     } break;
                     case ast::ast_trait_element_type:
                         // i do not know how to implement this yet.
-                        break;
+                        // break;
                     default:
                         interp->fatal("Compiler Error: Invalid decl in impl block");
                         break;
                 }
             }
         }
-
+			
+		interp->message("Resolving method entities");
         for(auto fn : function_entities) {
             auto e = resolve_entity(fn);
             if(e) e->debug_print(interp->out_stream()); 
@@ -827,6 +839,7 @@ namespace mu {
 
 
         pop_context_state(impl_block_entity)
+		return true;
     }
 
 //    Entity* Typer::resolve_function(Type* entity, ast::DeclPtr decl_ptr) {
@@ -856,9 +869,10 @@ namespace mu {
         return entity;
     }
 
-    std::vector<Local*> Typer::resolve_member_variable(ast::DeclPtr decl_ptr) {
+	std::tuple<std::vector<Local*>, bool> Typer::resolve_member_variable(ast::DeclPtr decl_ptr) {
         auto member = decl_ptr->as<ast::MemberVariable>();
         interp->message("Resolving Memeber");
+		decl_ptr->renderer(&renderer);
 
         std::vector<Local*> entities;
 
@@ -878,8 +892,10 @@ namespace mu {
             for(auto& i : member->init) {
                 auto op = resolve_expr(i.get(), type);
 
-                if(op.error)
-                    return entities;
+                if(op.error) {
+					interp->message("Error resolving expression");
+                    return std::make_tuple(entities, false);
+				}
 
                 init_types.push_back(op);
             }
@@ -920,7 +936,8 @@ namespace mu {
         else if(num_exprs == 0) {
             if(!type) {
                 report_str(member->pos(), "member variable must have type annotation or initialized");
-                return {};
+					interp->message("Error resolving expression");
+                return std::make_tuple(entities, false);
             }
 
             for(u32 i = 0; i < num_names; ++i) {
@@ -939,6 +956,7 @@ namespace mu {
         else {
             report(member->pos(), "unexected number of initialization expression, expecting '%u' or '1' "
                                 "found %u", num_names, num_exprs);
+			return std::make_tuple(entities, false);
         }
 
         for(auto e : entities) { 
@@ -951,14 +969,14 @@ namespace mu {
                 interp->message("'%s' previously declared here:", e->get_name()->value().c_str());
                 interp->print_file_section(entity->get_name()->pos);
 
-                return {};
+                return std::make_tuple(entities, false);
             }
             else {
                 // add it otherwise
                 add_entity(e);
             }
         }
-        return entities;
+        return std::make_tuple(entities, true);
     }
 
     void Typer::resolve_local_from_decl(ast::DeclPtr decl_ptr, bool mut) {
@@ -1113,10 +1131,11 @@ namespace mu {
                     return Operand(expr);
                 }
 
-            }
+            } break;
+			// this needs to be implemented in resolve_expr_to_entity
 			case ast::ast_method: {
 				result = resolve_method_call(expr);
- 		}
+			} break;
             default:
                 break;
         }
@@ -1911,13 +1930,11 @@ namespace mu {
 		Operand result(expr);
 		auto method = expr->as<ast::Method>();
 		// resolve to the entity because we need to know scope when resolving it.
-		auto operand_entity = resolve_expr_to_entity(method->operand.get());
+		auto operand_entity = resolve_expr_to_entity(method->expr.get());
 		auto entity_type = operand_entity->get_type();
 
 		interp->message("Found Entity Name: %s", operand_entity->get_name()->value().c_str());
 		interp->message("Found Entity Type: %s", operand_entity->get_type()->str().c_str());
-
-		while(1) {}
 
 		auto name = method->name->as<ast::Name>();
 
@@ -1946,7 +1963,7 @@ namespace mu {
 				interp->message("Accessing a triat type. to call its method. This shouldn't be allowed");
 			} break;
 			default:
-				report(method->operand->pos(), "'%s' is a non-accessable type: '%s'",
+				report(method->expr->pos(), "'%s' is a non-accessable type: '%s'",
 					operand_entity->get_name()->value().c_str(),
 					entity_type->str().c_str());
 				break;
@@ -1955,15 +1972,32 @@ namespace mu {
 
 		auto member = search_scope(member_scope, name->name);
 
-		// switch(member->kind) {
-		// 	case LocalEntity: {
-		// 		report(name->pos(), "unable to call '%s' of type '%s'",
-		// 				member->get_name()->value().c_str(),
-		// 				member->get_type()->str().c_str());
-		// 	}
-		// 	case FunctionEntity:
-		// 	default:
-		// }
+		if(!member) {
+			interp->message("Entity Not found for name %s", name->name->value().c_str());
+		}
+		else {
+			interp->message("Entity Found for name %s for type %s", name->name->value().c_str(), 
+					member->get_type()->str().c_str());
+		}
+
+		switch(member->kind()) {
+			case LocalEntity: {
+				interp->out_stream() << name->pos() << std::endl;
+				report(name->pos(), "unable to call '%s' of type '%s'",
+						member->get_name()->value().c_str(),
+						member->get_type()->str().c_str());
+			} break;
+			case FunctionEntity: {
+				auto fn = member->as<Function>();
+				if(fn->is_static()){
+					return resolve_static_method(operand_entity, fn, member->actuals, expr);
+				}
+				else {
+				}
+			} break;
+			default:
+				break;
+		}
 
 		 
 		return result;
@@ -2168,6 +2202,8 @@ namespace mu {
             }
             case ast::ast_empty:
                 return Operand(type_unit, nullptr, RValue);
+			default:
+				break;
         }
     }
 
@@ -2270,6 +2306,8 @@ namespace mu {
 
             case ast::ast_ignore_pattern:
                 break;
+			default:
+				break;
         }
     }
 }
