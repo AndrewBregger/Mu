@@ -10,6 +10,23 @@
 #include <stack>
 
 namespace mu {
+	std::string TypePath::PathName::str() {
+		std::string s;
+
+        for(auto iter = path.begin(); iter < path.end();) {
+            s += (*iter)->value;
+            // maybe add
+            if(++iter < path.end())
+                s += ".";
+        }
+
+		return s;
+	}
+
+	void TypePath::PathName::push_back(Atom* p) {
+		path.push_back(p);
+	}
+
 
     TypePath::TypePath() {}
 
@@ -55,27 +72,13 @@ namespace mu {
     }
 
     std::string TypePath::str() {
-        std::string s;
-
         auto p = path();
-
-        for(auto iter = p.begin(); iter < p.end();) {
-            s += (*iter)->value;
-            // maybe add
-            if(++iter < p.end())
-                s += ".";
-        }
-
-        return s;
+        return p.str();
     }
 
     Entity::Entity(ast::Ident *name, ScopePtr p, EntityKind k, ast::DeclPtr decl) :
         k(k), type(nullptr), parent(p), name(name), decl(decl) {
     }
-
-//    int Entity::str() {
-//        return 0;
-//    }
 
     Entity::~Entity() = default;
 
@@ -102,6 +105,12 @@ namespace mu {
 
         return p;
     }
+
+	TypePath::PathName Entity::full_path() {
+		auto type_path = path().path();
+		type_path.push_back(get_name()->val);
+		return type_path;
+	}
 
     ScopePtr Entity::scope() {
         return parent;

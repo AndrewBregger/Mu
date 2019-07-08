@@ -5,7 +5,8 @@ Next Tasks:
 Fix the function type spec parsing
     it current is (...) -> ret
     it needs to be (...) ret
-    This is because it coincides with how functions are declared.
+	This is for consistency of function declaration and type signatures.
+Trait Type Resolution
 Trait resolution for structure
 Casting
 Control Flow (If, While, Loop)
@@ -26,3 +27,5 @@ Struct resolution
 Impl block resolution
 Stmt resolution {expr, decl, empty}
 Local resolution
+Function resolution
+Basic satic method calls

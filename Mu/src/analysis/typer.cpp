@@ -1128,7 +1128,10 @@ namespace mu {
 //#if defined(MU_DEBUG)
         interp->out_stream() << "*****************DEBUG: Expression Resulting type" << std::endl;
         expr->renderer(&renderer);
-        interp->out_stream() << "*****************DEBUG: TYPE: " << (result.type ? result.type->str() : "Error") << std::endl;
+        interp->out_stream() << "*****************DEBUG: TYPE: "
+			<< (result.type ? result.type->str() : "Error") << std::endl;
+        interp->out_stream() << "*****************DEBUG: Entity: "
+			<< (result.entity ? result.entity->full_path().str(): "null") << std::endl;
 //#endif
 
         return result;
@@ -1663,7 +1666,7 @@ namespace mu {
         std::vector<Operand> resolved_actuals(num_params, Operand(nullptr));
 
         if(!fn->is_variadic()) {
-            if(actuals.size() > fn->num_params()) {
+            if(actuals.size() != fn->num_params()) {
                 report(call_pos, "unexpected number of parameters, %u given, %u expected",
                         actuals.size(), fn->num_params());
                 return std::make_tuple(resolved_actuals, false);
@@ -1864,6 +1867,7 @@ namespace mu {
                 }
                 else {
                     // TODO: check if curried functions is paractial in the scope of this language.
+					// maybe not....
                     return Operand(expr);
                 }
             }
@@ -1906,16 +1910,15 @@ namespace mu {
 		// resolve to the entity because we need to know scope when resolving it.
 		auto res = resolve_expr(method->expr.get());	
 
-		// if there was an error resolving the reciever.
+		// If there was an error resolving the reciever.
 		if(res.error)
 			return res;
-
 
 		auto operand_entity = res.entity;
 		auto entity_type = operand_entity->get_type();
 
 		interp->message("Found Entity Name: %s", operand_entity->get_name()->value().c_str());
-		interp->message("Found Entity Type: %s", operand_entity->get_type()->str().c_str());
+		interp->message("Found Entity Type: %s", entity_type->str().c_str());
 
 		auto name = method->name->as<ast::Name>();
 
@@ -1926,13 +1929,6 @@ namespace mu {
 		
 		ScopePtr member_scope;
 
-		switch(res.access) {
-			case TypeAccess:
-			case LValue:
-			default:
-				break;
-				// error
-		}
 
 		
 		// check the type of the resolved entity
@@ -1969,28 +1965,20 @@ namespace mu {
 					member->get_type()->str().c_str());
 		}
 
-		switch(member->kind()) {
-			case LocalEntity: {
-				interp->out_stream() << name->pos() << std::endl;
-				report(name->pos(), "unable to call '%s' of type '%s'",
-						member->get_name()->value().c_str(),
-						member->get_type()->str().c_str());
-			} break;
-			case FunctionEntity: {
-				auto fn = member->as<Function>();
-				if(fn->is_static()){
-					return resolve_static_method(operand_entity, fn, method->actuals, expr);
-				}
-				else {
-					return resolve_received_method(operand_entity, fn, method->actuals, expr);
-				}
-			} break;
+		// auto fn = member->as<Function>();
+		switch(res.access) {
+			case TypeAccess:
+				return resolve_static_method(operand_entity, member,
+						method->actuals, res, name);
+			case LValue:
+				return resolve_received_method(operand_entity, member,
+						method->actuals, res, name);
 			default:
 				break;
 		}
 
-		 
-		return result;
+
+		return Operand(expr);	 
 	}
 
     Operand Typer::resolve_cast(ast::Cast *expr) {
@@ -2254,14 +2242,38 @@ namespace mu {
             return Operand(nullptr);
     }
 
-	Operand Typer::resolve_static_method(Entity* op, Function* fn,
-			const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr) {
-		return Operand(expr);
+	Operand Typer::resolve_static_method(Entity* op, Entity* fn,
+			const std::vector<ast::ExprPtr>& actuals, Operand operand, ast::Expr* name) {
+		if(!fn->is_function()) {
+			report(name->pos(), "'%s' is not a function of '%s'",
+					fn->get_name()->value().c_str(),
+					op->get_name()->value().c_str());
+			return Operand(name);
+		}
+		else {
+			auto fn_type = fn->get_type()->as<types::FunctionType>();
+			auto fn_entity = fn->as<Function>();
+			if(!fn_entity->is_static()) {
+				report(name->pos(), "'%s' is not a static function of '%s'",
+						fn->get_name()->value().c_str(),
+						op->get_name()->value().c_str());
+				return Operand(name);
+			}
+			auto [results, valid] = resolve_call_actuals(fn_entity, actuals, name->pos());
+			if(valid) {
+				auto ret_type = fn_type->get_ret();
+				return Operand(ret_type, name, RValue);
+			}
+			else {
+				return Operand(name);
+			}
+		}
+		return Operand(name);
 	}
 
-	Operand Typer::resolve_received_method(Entity* op, Function* fn,
-			const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr) {
-		return Operand(expr);
+	Operand Typer::resolve_received_method(Entity* op, Entity* fn,
+			const std::vector<ast::ExprPtr>& actuals, Operand operand, ast::Expr* name) {
+		return Operand(name);
 	}
 
 

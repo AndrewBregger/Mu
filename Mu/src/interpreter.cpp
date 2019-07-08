@@ -305,9 +305,20 @@ void Interpreter::print_file_section(const mu::Pos &pos) {
     auto file = find_file_by_id(pos.fid);
 
     auto line = pos.line;
+	const auto& line_str = file->get_line(line);
 
-    out_stream() << "\t" << file->get_line(line) << std::endl;
-    out_stream() << "\t" << std::string(pos.column - 1, ' ') << '^' << std::endl;
+	// removes the spaces and tabs from the line.
+	// this is so the carret lines up properly.
+	u32 offset = 0;
+	u32 toremove = 0;
+	while(line_str[offset] == ' ' or
+		  line_str[offset] == '\t') {
+		toremove++;
+		offset++;
+	}
+
+    out_stream() << "\t" <<  line_str.substr(offset) << std::endl;
+    out_stream() << "\t" << std::string(pos.column - toremove - 1, ' ') << '^' << std::endl;
 }
 
 void Interpreter::fatal(const std::string &msg) {

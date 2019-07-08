@@ -154,14 +154,18 @@ namespace mu {
 			Operand resolve_method_call(ast::Expr* expr);
 	
 
-			// resolves a static method of Entity op
-			Operand resolve_static_method(Entity* op, Function* fn,
-					const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr);
+			// resolves a static method of Entity owner 
+			// The owner is the function that has fn.
+			Operand resolve_static_method(Entity* owner, Entity* fn,
+					const std::vector<ast::ExprPtr>& actuals, Operand operand,
+					ast::Expr* name);
 		
 			
 			// resolves a method 
-			Operand resolve_received_method(Entity* op, Function* fn,
-					const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr);
+			// The receiver is the structure that is receive the function call.
+			Operand resolve_received_method(Entity* receiver, Entity* fn,
+					const std::vector<ast::ExprPtr>& actuals, Operand operand,
+					ast::Expr* name);
 
             // a wrapper for 'resolve_name_expr' and 'resolve_name_generic_expr'
             Operand resolve_name(ast::Expr* expr);

@@ -37,7 +37,20 @@ namespace mu {
 
     class TypePath {
     public:
-        typedef std::vector<Atom*> PathName;
+
+		struct PathName {
+			std::vector<Atom*> path;
+
+			PathName() = default;
+
+			std::string str();
+
+			void push_back(Atom* p);
+
+			size_t size() { return path.size(); }
+
+			Atom* operator[] (u32 i) { return path[i]; }
+		};
 
         // to iteratively build the TypePath
         TypePath();
@@ -60,6 +73,7 @@ namespace mu {
     private:
         std::vector<ScopePtr> scopes;
     };
+
 
     enum EntityKind {
         LocalEntity,
@@ -117,6 +131,8 @@ namespace mu {
         virtual bool validate() { return true; }
 
         TypePath path();
+
+		TypePath::PathName full_path();
 
         inline ast::DeclPtr get_decl() { return decl; }
 
