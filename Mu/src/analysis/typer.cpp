@@ -97,7 +97,7 @@ namespace mu {
             if(e)
                 return e;
 
-            report(name->pos, "unable to find name '%s'", name->val->value.c_str())
+            report(name->pos, "use of undeclared identifier '%s'", name->val->value.c_str())
             return nullptr;
         }
     }
@@ -1029,40 +1029,6 @@ namespace mu {
         pop_context_state(resolving_local);
     }
 
-    Entity *Typer::resolve_expr_to_entity(ast::Expr *expr) {
-        Entity* entity = nullptr;
-        switch(expr->kind) {
-            case ast::ast_name:
-                 entity = resolve_name_expr(expr->as<ast::Name>());
-                 break;
-            case ast::ast_name_generic: {
-                auto [op, e] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
-                entity = e;
-                break;
-            }
-            case ast::ast_accessor: {
-                auto accessor = expr->as<ast::Accessor>();
-                entity = resolve_accessor_spec(accessor);
-                break;
-            }
-            case ast::ast_self_expr: {
-                if(!context.impl_block_entity) {
-                  report_str(expr->pos(), "use of 'self' outside of an impl block");
-                  return nullptr;
-                }
-                // I am doing it this way because the type have have modifiers.
-                auto self_name = ast::Ident(interp->find_name("self"), expr->pos());
-                entity = search_active_scope(&self_name);
-           } break;
-            default:
-                resolve_expr(expr);
-                return nullptr;
-        }
-
-        if(entity) entity->set_used();
-        return entity;
-    }
-
     /// @NOTE: If a specific expression resolve function is
     // called the operand of the expression must be set after the call.
     Operand Typer::resolve_expr(ast::Expr *expr, types::Type *expected_type) {
@@ -1123,16 +1089,22 @@ namespace mu {
                 result = resolve_block(expr);
                 break;
             case ast::ast_self_expr: {
-                auto entity = resolve_expr_to_entity(expr);
-                if(entity)
-                  result = Operand(entity->get_type(), expr, SelfAccess);
-                else  {
-                  report_str(expr->pos(), "failed to resolve self")
-                    return Operand(expr);
-                }
+				if(!context.impl_block_entity) {
+					report_str(expr->pos(), "'self' used outside of impl block");
+					return Operand(expr);
+				}
 
+				auto name = ast::Ident(interp->find_name("self"), expr->pos());
+				auto entity = search_active_scope(&name);
+
+				if(!entity) {
+					return Operand(expr);
+				}
+				else {
+					return Operand(entity->get_type(), expr, SelfAccess, entity);
+				}
             } break;
-			// this needs to be implemented in resolve_expr_to_entity
+			// this needs to be implemented in resolve_expr
 			case ast::ast_method: {
 				result = resolve_method_call(expr);
 			} break;
@@ -1412,16 +1384,16 @@ namespace mu {
                         interp->print_file_section(entity->get_decl()->pos());
                         return Operand(expr);
                     }
-                    return Operand(entity->get_type(), expr, LValue);
+                    return Operand(entity->get_type(), expr, LValue, entity);
                 }
                 else {
                     switch(entity->kind()) {
                         case TypeEntity:
                         case ModuleEntity:
                         case AliasEntity:
-                            return Operand(entity->get_type(), expr, TypeAccess);
+                            return Operand(entity->get_type(), expr, TypeAccess, entity);
                         case FunctionEntity:
-                            return Operand(entity->get_type(), expr, FunctionAccess);
+                            return Operand(entity->get_type(), expr, FunctionAccess, entity);
                         default:
                             return Operand(expr);
                     }
@@ -1509,14 +1481,14 @@ namespace mu {
                             return Operand(expr);
                         }
                         else if(entity->is_function()) {
-                            return Operand(entity->get_type(), expr, TypeAccess);
+                            return Operand(entity->get_type(), expr, TypeAccess, entity);
                         }
                     }
                     default:
                         if(entity->is_local()) {
                             auto local = entity->as<Local>();
                             if(local->is_visable() || access == SelfAccess)
-                                return Operand(entity->get_type(), expr, access);
+                                return Operand(entity->get_type(), expr, access, entity);
                             else {
                                 report(expr->pos(), "unable to access private member '%s' of struct '%s'", entity->get_name()->value().c_str(),
                                         ctype->get_name()->value().c_str());
@@ -1524,7 +1496,7 @@ namespace mu {
                             }
                         }
                         else if(entity->is_module() || entity->is_type()) {
-                            return Operand(entity->get_type(), expr, TypeAccess);
+                            return Operand(entity->get_type(), expr, TypeAccess, entity);
                         }
                         else if(entity->is_function()) {
                             // If this method doesnt have any required parameters then
@@ -1532,7 +1504,7 @@ namespace mu {
                             // To get a function pointer, use Type.funct_name.
 
                             // I think this should be TypeAccess maybe this could be change to be just a function Acces type.
-                            return Operand(entity->get_type(), expr, TypeAccess);
+                            return Operand(entity->get_type(), expr, TypeAccess, entity);
                             // report(accessor->name->pos, "unable to access method")
                         }
                         else {
@@ -1864,7 +1836,8 @@ namespace mu {
     }
 
     Operand Typer::resolve_call_or_curry(ast::Call *expr) {
-        auto function = resolve_expr_to_entity(expr->name.get());
+        auto res = resolve_expr(expr->name.get());
+		auto function = res.entity;
 
         if(function->is_function()) {
             auto fn_entity = function->as<Function>();
@@ -1929,8 +1902,16 @@ namespace mu {
 	Operand Typer::resolve_method_call(ast::Expr* expr) {
 		Operand result(expr);
 		auto method = expr->as<ast::Method>();
+
 		// resolve to the entity because we need to know scope when resolving it.
-		auto operand_entity = resolve_expr_to_entity(method->expr.get());
+		auto res = resolve_expr(method->expr.get());	
+
+		// if there was an error resolving the reciever.
+		if(res.error)
+			return res;
+
+
+		auto operand_entity = res.entity;
 		auto entity_type = operand_entity->get_type();
 
 		interp->message("Found Entity Name: %s", operand_entity->get_name()->value().c_str());
@@ -1944,6 +1925,14 @@ namespace mu {
 		}
 		
 		ScopePtr member_scope;
+
+		switch(res.access) {
+			case TypeAccess:
+			case LValue:
+			default:
+				break;
+				// error
+		}
 
 		
 		// check the type of the resolved entity
@@ -1990,9 +1979,10 @@ namespace mu {
 			case FunctionEntity: {
 				auto fn = member->as<Function>();
 				if(fn->is_static()){
-					return resolve_static_method(operand_entity, fn, member->actuals, expr);
+					return resolve_static_method(operand_entity, fn, method->actuals, expr);
 				}
 				else {
+					return resolve_received_method(operand_entity, fn, method->actuals, expr);
 				}
 			} break;
 			default:
@@ -2130,8 +2120,11 @@ namespace mu {
     }
 
     Entity *Typer::resolve_expr_spec(ast::Expr *expr) {
-        auto entity = resolve_expr_to_entity(expr);
+        auto res = resolve_expr(expr);
+		if(res.error)
+			return nullptr;
 
+		const auto entity = res.entity;
         if(entity and entity->is_type()) {
             return entity;
         }
@@ -2260,6 +2253,17 @@ namespace mu {
         else
             return Operand(nullptr);
     }
+
+	Operand Typer::resolve_static_method(Entity* op, Function* fn,
+			const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr) {
+		return Operand(expr);
+	}
+
+	Operand Typer::resolve_received_method(Entity* op, Function* fn,
+			const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr) {
+		return Operand(expr);
+	}
+
 
     void Typer::resolve_pattern(ast::Pattern *pattern, Operand expected_type, ast::DeclPtr decl) {
         auto type = expected_type.type;

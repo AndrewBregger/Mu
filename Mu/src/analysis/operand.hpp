@@ -15,6 +15,8 @@ namespace ast {
 namespace mu {
     const Val NO_VALUE;
 
+	class Entity;
+
     enum AccessType {
         LValue, // assignable value
         RValue, // result value
@@ -32,15 +34,21 @@ namespace mu {
     // AccessType determines how this expression can be used.
     //  If it it is an LValue can be on the left side of an assign.
     //  If is it is an RValue then it must be on the right side.
+	//  If the expression resolves to an entity, the entity field will be set.
     struct Operand {
         types::Type *type;
         ast::Expr *expr;
+		Entity* entity;
         AccessType access{RValue};
         Val val{NO_VALUE};
         bool error{false};
 
         // Valid run time expression
         Operand(mu::types::Type *type, ast::Expr *expr, AccessType access_type);
+
+        // Valid run time expression
+        Operand(mu::types::Type *type, ast::Expr *expr, AccessType access_type,
+				Entity* entity);
 
         // Valid compile time expression
         Operand(mu::types::Type *type, ast::Expr *expr, const Val &val);

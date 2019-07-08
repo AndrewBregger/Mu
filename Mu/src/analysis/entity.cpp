@@ -127,7 +127,7 @@ namespace mu {
     
     void Entity::debug_print(std::ostream& out) {
         if(is_resolved())
-            out << "\ttype: " << type->str() << std::endl;
+            out << "\ttype: " << (type ? type->str() : "null")<< std::endl;
 
         out << "\tparent: " << (parent->get_name() ? parent->get_name()->value() : "") << std::endl;
         out << "\tstatus: ";

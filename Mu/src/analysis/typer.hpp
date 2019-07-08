@@ -152,6 +152,16 @@ namespace mu {
             Operand resolve_call_or_curry(ast::Call* expr);
 
 			Operand resolve_method_call(ast::Expr* expr);
+	
+
+			// resolves a static method of Entity op
+			Operand resolve_static_method(Entity* op, Function* fn,
+					const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr);
+		
+			
+			// resolves a method 
+			Operand resolve_received_method(Entity* op, Function* fn,
+					const std::vector<ast::ExprPtr>& actuals, ast::Expr* expr);
 
             // a wrapper for 'resolve_name_expr' and 'resolve_name_generic_expr'
             Operand resolve_name(ast::Expr* expr);
