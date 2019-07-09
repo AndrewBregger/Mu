@@ -138,22 +138,22 @@ bool mu::types::Pointer::is_mutable() {
     return base->is_mutable();
 }
 
-mu::types::Reference::Reference(mu::types::Type* &base) : Type(ReferenceType, 8, 8), base(base) {
-}
-
-mu::types::Reference::~Reference() = default;
-
-std::string mu::types::Reference::str() {
-    return "&" + base->str();
-}
-
-mu::types::Type *mu::types::Reference::base_type() {
-    return base->base_type();
-}
-
-bool mu::types::Reference::is_mutable() {
-    return base->is_mutable();
-}
+// mu::types::Reference::Reference(mu::types::Type* &base) : Type(ReferenceType, 8, 8), base(base) {
+// }
+// 
+// mu::types::Reference::~Reference() = default;
+// 
+// std::string mu::types::Reference::str() {
+//     return "&" + base->str();
+// }
+// 
+// mu::types::Type *mu::types::Reference::base_type() {
+//     return base->base_type();
+// }
+// 
+// bool mu::types::Reference::is_mutable() {
+//     return base->is_mutable();
+// }
 
 mu::types::Array::Array(mu::types::Type* &type, u64 count) : Type(ArrayType, count * type->size(), type->alignment()),
     type(type), count(count) {

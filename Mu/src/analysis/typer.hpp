@@ -146,8 +146,10 @@ namespace mu {
                     const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos);
 
             // this is used when calling a function pointer.
-            std::tuple<std::vector<Operand>, bool> resolve_actauls(types::FunctionType* fn,
+            std::tuple<std::vector<Operand>, bool> resolve_actuals(types::FunctionType* fn,
                     const std::vector<ast::ExprPtr>& actuals, const mu::Pos& call_pos);
+
+            std::tuple<std::vector<Operand>, Entity*, Operand> resolve_method_actuals(ast::Method* method);
 
             Operand resolve_call_or_curry(ast::Call* expr);
 

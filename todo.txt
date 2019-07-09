@@ -18,6 +18,7 @@ Range based for loops
 Expand pattern resolution
 Simple Code Generation (LLVM / Custom VM)
 Examine if curried functions is practical in the scope of this language.
+Fix named parameters
 
 Done:
 Scanner

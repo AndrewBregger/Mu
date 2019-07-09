@@ -466,7 +466,7 @@ namespace mu {
                     else
                         mut = context.impl_block_entity->get_type();
 
-                    auto type = interp->checked_new_type<types::Reference>(mut);
+                    auto type = interp->checked_new_type<types::Pointer>(mut);
                     auto ident = new ast::Ident(interp->find_name("self"), p->pos());
                     auto local = interp->new_entity<Local>(ident, nullptr, Reference, active_scope(), param);
                     local->resolve_to(type);
@@ -1101,6 +1101,7 @@ namespace mu {
 					return Operand(expr);
 				}
 				else {
+					entity->set_used();
 					return Operand(entity->get_type(), expr, SelfAccess, entity);
 				}
             } break;
@@ -1387,6 +1388,7 @@ namespace mu {
                         interp->print_file_section(entity->get_decl()->pos());
                         return Operand(expr);
                     }
+					entity->set_used();
                     return Operand(entity->get_type(), expr, LValue, entity);
                 }
                 else {
@@ -1394,8 +1396,10 @@ namespace mu {
                         case TypeEntity:
                         case ModuleEntity:
                         case AliasEntity:
+							entity->set_used();
                             return Operand(entity->get_type(), expr, TypeAccess, entity);
                         case FunctionEntity:
+							entity->set_used();
                             return Operand(entity->get_type(), expr, FunctionAccess, entity);
                         default:
                             return Operand(expr);
@@ -1405,6 +1409,7 @@ namespace mu {
             case ast::ast_name_generic: {
                 interp->message("Generics are not implemented at this time");
                auto [op, entity] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
+				entity->set_used();
                return op;
             }
             default:
@@ -1484,14 +1489,17 @@ namespace mu {
                             return Operand(expr);
                         }
                         else if(entity->is_function()) {
+							entity->set_used();
                             return Operand(entity->get_type(), expr, TypeAccess, entity);
                         }
                     }
                     default:
                         if(entity->is_local()) {
                             auto local = entity->as<Local>();
-                            if(local->is_visable() || access == SelfAccess)
+                            if(local->is_visable() || access == SelfAccess) {
+								entity->set_used();
                                 return Operand(entity->get_type(), expr, access, entity);
+							}
                             else {
                                 report(expr->pos(), "unable to access private member '%s' of struct '%s'", entity->get_name()->value().c_str(),
                                         ctype->get_name()->value().c_str());
@@ -1499,6 +1507,7 @@ namespace mu {
                             }
                         }
                         else if(entity->is_module() || entity->is_type()) {
+							entity->set_used();
                             return Operand(entity->get_type(), expr, TypeAccess, entity);
                         }
                         else if(entity->is_function()) {
@@ -1507,6 +1516,7 @@ namespace mu {
                             // To get a function pointer, use Type.funct_name.
 
                             // I think this should be TypeAccess maybe this could be change to be just a function Acces type.
+							entity->set_used();
                             return Operand(entity->get_type(), expr, TypeAccess, entity);
                             // report(accessor->name->pos, "unable to access method")
                         }
@@ -1793,7 +1803,7 @@ namespace mu {
     }
 
     std::tuple<std::vector<Operand>, bool>
-    Typer::resolve_actauls(types::FunctionType *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
+    Typer::resolve_actuals(types::FunctionType *fn, const std::vector<ast::ExprPtr> &actuals, const mu::Pos &call_pos) {
 //        if(!fn->is_variadic()) {
 //            if(actuals.size() > fn->num_params()) {
 //                report(call_pos, "unexpected number of parameters, %u given, %u expected",
@@ -1838,6 +1848,10 @@ namespace mu {
         return std::make_tuple(resolved_actuals, true);
     }
 
+	std::tuple<std::vector<Operand>, Entity*, Operand> Typer::resolve_method_actuals(ast::Method* method) {
+	}
+
+
     Operand Typer::resolve_call_or_curry(ast::Call *expr) {
         auto res = resolve_expr(expr->name.get());
 		auto function = res.entity;
@@ -1860,7 +1874,7 @@ namespace mu {
             auto type = function->get_type();
             if(type->is_function()) {
                 auto fn_type = type->as<types::FunctionType>();
-                auto [actuals, valid] = resolve_actauls(fn_type, expr->actuals, expr->pos());
+                auto [actuals, valid] = resolve_actuals(fn_type, expr->actuals, expr->pos());
                 if(valid) {
                     auto ret_type = fn_type->get_ret();
                     return Operand(ret_type, expr, RValue);
@@ -1907,6 +1921,17 @@ namespace mu {
 		Operand result(expr);
 		auto method = expr->as<ast::Method>();
 
+		// std::vector<ast::ExprPtr> actuals = {method->expr};
+		// for(auto a : method->actuals)
+		// 	actuals.push_back(a);
+	
+		// this call needs to do more than the other resolve actuals function because
+		// the method that is called is dependent on the first actual
+		auto [actuals, method_entity, res] = resolve_method_actuals(method);
+		return res;
+
+
+/*
 		// resolve to the entity because we need to know scope when resolving it.
 		auto res = resolve_expr(method->expr.get());	
 
@@ -1977,7 +2002,7 @@ namespace mu {
 				break;
 		}
 
-
+*/
 		return Operand(expr);	 
 	}
 
@@ -2060,16 +2085,16 @@ namespace mu {
 
                 return interp->checked_new_type<types::Pointer>(base_type);
             }
-            case ast::ast_ref: {
-                auto s = spec->as<ast::RefSpec>();
-                push_context_state(allow_incomplete_types, true)
+            // case ast::ast_ref: {
+            //     auto s = spec->as<ast::RefSpec>();
+            //     push_context_state(allow_incomplete_types, true)
 
-                auto base_type = resolve_spec(s->type.get());
+            //     auto base_type = resolve_spec(s->type.get());
 
-                pop_context_state(allow_incomplete_types);
+            //     pop_context_state(allow_incomplete_types);
 
-                return interp->checked_new_type<types::Reference>(base_type);
-            }
+            //     return interp->checked_new_type<types::Pointer>(base_type);
+            // }
             case ast::ast_mut: {
                 auto s = spec->as<ast::MutSpec>();
                 auto base_type = resolve_spec(s->type.get());
@@ -2273,6 +2298,62 @@ namespace mu {
 
 	Operand Typer::resolve_received_method(Entity* op, Entity* fn,
 			const std::vector<ast::ExprPtr>& actuals, Operand operand, ast::Expr* name) {
+		if(fn->is_function()) {
+			/*
+				If the type of the operand is not a reference then
+				when the method is called a reference of the reciever
+				is taken and is used as the first parameter
+
+				If the type of the operand is already a reference, then
+				it is taken as is.
+			 */
+
+			auto receiver_type = operand.type;
+			// auto operand_type
+			if(receiver_type->is_ptr()) {
+			}
+		}
+		else {
+			if(fn->is_local()) {
+				auto local = fn->as<Local>();
+				// This should be a name and have a function type.
+				/* This is handling the case when a member of a struct is
+				a function. It is parsed as a method call but should be processed 
+				as a normal function call.
+				Foo: struct {
+					fn: (f32, f32) Unit
+				}
+
+				let foo = Foo.new()
+				foo.fn()
+				*/
+				if(local->is_member()) {
+					auto type = local->get_type();
+					if(type->is_function()) {
+						auto fn_type = type->as<types::FunctionType>();
+						auto [operands, valid] = resolve_actuals(fn_type, actuals, name->pos());
+						if(valid) {
+							auto ret_type = fn_type->get_ret();
+							return Operand(ret_type, name, RValue);
+						}
+						else
+							return Operand(name);
+					}
+					else {
+						report(name->pos(), "attempting to call a non-function type, found type '%s'", type->str().c_str());
+						return Operand(name);
+					}
+				}
+				else {
+					interp->fatal("Compiler Error: The name is not a member");
+					return Operand(name);
+				}
+			}
+			else {
+				report_str(name->pos(), "uhhhhh...");
+				return Operand(name);
+			}
+		}
 		return Operand(name);
 	}
 

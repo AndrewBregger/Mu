@@ -304,7 +304,8 @@ namespace mu {
 
             std::string str() override;
 
-            Type *base_type() override;
+            Type* base_type() override;
+			Type* as_reftype();
 
             bool is_ptr() override { return true; }
             bool is_arithmetic() override { return true; }
@@ -314,22 +315,22 @@ namespace mu {
             Type* base;
         };
 
-        class Reference : public Type {
-        public:
-            Reference(Type* &base);
+        // class Reference : public Type {
+        // public:
+        //     Reference(Type* &base);
 
-            virtual ~Reference();
+        //     virtual ~Reference();
 
-            std::string str() override;
+        //     std::string str() override;
 
-            Type *base_type() override;
+        //     Type *base_type() override;
 
-            bool is_ref() override { return true; }
+        //     bool is_ref() override { return true; }
 
-            inline bool is_mutable() override;
-        private:
-            Type* base;
-        };
+        //     inline bool is_mutable() override;
+        // private:
+        //     Type* base;
+        // };
 
         class Array : public Type {
         public:

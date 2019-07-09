@@ -273,6 +273,8 @@ ast::ExprPtr mu::Parser::try_struct_expr(ast::ExprPtr operand) {
 ast::ExprPtr mu::Parser::parse_primary_expr() {
 	auto expr = parse_bottom_expr();
 	
+	while(check(mu::Tkn_OpenParen))
+		expr = parse_call(expr, current());
 
     while(check(mu::Tkn_Period))
         expr = parse_suffix(expr, false);
@@ -827,9 +829,10 @@ ast::ExprPtr mu::Parser::parse_method(ast::ExprPtr operand, ast::ExprPtr name,
 	bool error = false;
 
     if(allow(mu::Tkn_OpenParen)) {
-		std::vector<ast::ExprPtr> actuals;
+		std::vector<ast::ExprPtr> actuals = {operand};
+
 		if(!check(mu::Tkn_CloseParen)) {
-			actuals = many<ast::ExprPtr>([this]() {
+			many<ast::ExprPtr>([this]() {
 				if(check(mu::Tkn_Identifier)) {
 					if(peek().kind() == mu::Tkn_Colon) {
 						auto ident = current();
@@ -853,9 +856,9 @@ ast::ExprPtr mu::Parser::parse_method(ast::ExprPtr operand, ast::ExprPtr name,
 				bool val = allow(mu::Tkn_Comma);
 				remove_newlines();
 				return val;
-			}, [&pos, this, &error](auto& results, ast::ExprPtr expr) {
+			}, [&pos, this, &error, &actuals](auto& results, ast::ExprPtr expr) {
 				if(expr) {
-					Parser::append<ast::ExprPtr>(results, expr);
+					Parser::append<ast::ExprPtr>(actuals, expr);
 					pos.extend(expr->pos());
 				}
 				else {
@@ -873,7 +876,7 @@ ast::ExprPtr mu::Parser::parse_method(ast::ExprPtr operand, ast::ExprPtr name,
 		// for ( ) 
 		pos.span += 2;
 		
-		return ast::make_expr<ast::Method>(operand, name, actuals, pos);
+		return ast::make_expr<ast::Method>(name, actuals, pos);
     }
 	else {
 		ast::Ident* n = nullptr;	

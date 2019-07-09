@@ -236,15 +236,13 @@ namespace ast {
     };
 
     struct Method : public Expr {
-        ExprPtr expr;
         ExprPtr name;
-        // Ident* name;
-        // std::vector<ast::SpecPtr> type_parameters;
+		// [self, args ...]
         std::vector<ExprPtr> actuals;
 
-        Method(ExprPtr expr, ExprPtr name, const std::vector<ExprPtr>& actuals, const mu::Pos& pos);
-
+        Method(ExprPtr name, const std::vector<ExprPtr>& actuals, const mu::Pos& pos);
         ~Method() override;
+
         void renderer(AstRenderer* renderer) override;
     };
 
