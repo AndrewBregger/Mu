@@ -178,6 +178,7 @@ namespace mu {
     }
 
     void Global::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << "\tinitialized: " << (initialized ? "true" : "false") << std::endl;
@@ -196,6 +197,7 @@ namespace mu {
         }
         out << std::endl;
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
     Local::Local(ast::Ident *name, types::Type *type, AddressType addr_type, ScopePtr p, ast::DeclPtr decl) :
@@ -216,6 +218,7 @@ namespace mu {
     }
 
     void Local::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << "\tinitialized: " << (is_initialized() ? "true" : "false") << std::endl;
@@ -236,6 +239,7 @@ namespace mu {
                 out << "Unknown";
                 break; } out << std::endl;
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
     std::string Local::str() {
@@ -255,10 +259,12 @@ namespace mu {
     }
 
     void Constant::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << "\tvalue: " << val << std::endl;
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
 
@@ -277,9 +283,11 @@ namespace mu {
     }
 
     void Alias::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
     std::string Alias::str() {
@@ -306,6 +314,7 @@ namespace mu {
     Function::~Function() = default;
 
     void Function::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << "\tmethod: " << (is_method() ? "true" : "false") << std::endl;
@@ -319,6 +328,7 @@ namespace mu {
         }
         out << ']' << std::endl;
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
     Entity* Function::resolve(Typer *typer) {
@@ -363,9 +373,11 @@ namespace mu {
     }
 
     void Type::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
     Type::~Type() = default;
@@ -439,9 +451,11 @@ namespace mu {
     Module::~Module() = default;
 
     void Module::debug_print(std::ostream& out) {
+		printf("\033[0;36m");
         out << this->str() << '{' << std::endl;
         Entity::debug_print(out);
         out << '}' << std::endl;
+		printf("\033[0m");
     }
 
     std::string Module::str() {

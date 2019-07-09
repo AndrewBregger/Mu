@@ -83,8 +83,12 @@ public:
     template<typename... Args>
     void report_error(const mu::Pos& pos, const std::string& fmt, Args... args) {
         print_file_pos(pos);
+
+		printf("\033[0;31m");
         out_stream() << "Error: ";
         printf(fmt.c_str(), args...);
+		printf("\033[0m");
+
         out_stream() << std::endl;
         print_file_section(pos);
     }
@@ -94,6 +98,15 @@ public:
         out_stream() << "\t";
         printf(fmt.c_str(), args...);
         out_stream() << std::endl;
+    }
+
+    template <typename... Args>
+    void debug(const std::string& fmt, Args... args) {
+		printf("\033[1;35m");
+		printf("Debug: ");
+        printf(fmt.c_str(), args...);
+		printf("\n");
+		printf("\033[0m");
     }
 
     void fatal(const std::string& msg);

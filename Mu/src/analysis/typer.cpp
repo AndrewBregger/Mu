@@ -248,9 +248,9 @@ namespace mu {
     }
 
     Entity *Typer::resolve_entity(Entity *entity) {
-        interp->message("Resolving: %s", entity->str().c_str());
+        interp->debug("Resolving: %s", entity->str().c_str());
         if(entity->is_resolved()) {
-            interp->message("\tAlready Resolved: Returning");
+            interp->debug("\tAlready Resolved: Returning");
             return entity;
         }
 
@@ -269,7 +269,7 @@ namespace mu {
         auto e = entity->resolve(this);
 
         if(e != entity)
-            interp->message("The Entity was changed during resolution");
+            interp->debug("The Entity was changed during resolution");
 
         context.active_entity = nullptr;
         return e;
@@ -319,7 +319,7 @@ namespace mu {
         }
 
         if(resolved_type and expr_type.type) {
-            interp->message("Global Types: Annotation: %s, Expression: %s",
+            interp->debug("Global Types: Annotation: %s, Expression: %s",
                             resolved_type->str().c_str(),
                             expr_type.type->str().c_str());
         }
@@ -331,12 +331,12 @@ namespace mu {
             return nullptr;
 
 
-        interp->message("Global resoved type: %s", resolved_type->str().c_str());
+        interp->debug("Global resoved type: %s", resolved_type->str().c_str());
 
         // if the value is mutable the valarable should be converted to
         // a constant
         if(expr_type.val.is_constant and !global->is_mutable()) {
-            interp->message("Global is a constant, is tranformed into a constant entity");
+            interp->debug("Global is a constant, is tranformed into a constant entity");
             // convert this entity to a constant.
             // interp->remove_entity(global);
 
@@ -364,7 +364,7 @@ namespace mu {
     }
 
     Entity *Typer::resolve(Type *type) {
-        interp->message("Resolving %s", type->str().c_str());
+        interp->debug("Resolving %s", type->str().c_str());
 
         switch(type->get_decl()->kind) {
             case ast::ast_structure:
@@ -457,7 +457,7 @@ namespace mu {
                     }
                     if(!context.impl_block_entity) {
                         report_str(param->pos(), "unable to resolve the self parameter");
-                        interp->message("This is primarily due function not being in an impl block");
+                        interp->message("This is primarily due to function not being in an impl block");
                         return std::make_tuple(params, false);
                     }
                     types::Type* mut = nullptr;
@@ -531,8 +531,8 @@ namespace mu {
 
     Entity *Typer::resolve(Function *funct) {
         if(context.impl_block_entity) {
-          interp->out_stream() << "Resolving method for: " << context.impl_block_entity->get_name()->value() << std::endl;
-          interp->out_stream() << "\tMethod Name: " << funct->get_name()->value() << std::endl;
+          interp->debug("Resolving method for: %s", context.impl_block_entity->get_name()->value().c_str());
+          interp->debug("\tMethod Name: %s", funct->get_name()->value().c_str());
         }
 
         auto function_decl = funct->get_decl_as<ast::Procedure>();
@@ -552,7 +552,7 @@ namespace mu {
         std::vector<types::Type*> param_types;
         if(!valid) {
             // the error has already been reported.
-            interp->message("There was an error processing members");
+            interp->debug("There was an error processing members");
             for(auto p : params)
               p->debug_print(interp->out_stream());
             return nullptr;
@@ -767,18 +767,18 @@ namespace mu {
             members, member_scope, size, entity, alignment);
 
 
-        interp->message("Structure Resolution");
+        interp->debug("Structure Resolution");
         for(auto& entity : members) {
             auto local = entity->as<Local>();
-            interp->message("%s -> %s | %lu", entity->get_name()->value().c_str(), entity->get_type()->str().c_str(), local->get_offset());
+            interp->debug("%s -> %s | %lu", entity->get_name()->value().c_str(), entity->get_type()->str().c_str(), local->get_offset());
         }
 
         entity->resolve_to(type);
-		interp->message("Resolving Impl Blocks");
+		interp->debug("Resolving Impl Blocks");
 
         if(resolve_impl_blocks(entity)) {
 			pop_scope();
-			interp->message("Finished resolving %s", entity->get_name()->value().c_str());
+			interp->debug("Finished resolving %s", entity->get_name()->value().c_str());
 			return entity;
 		}
 		else {
@@ -796,7 +796,7 @@ namespace mu {
 
         std::vector<Function*> function_entities;
 		
-		interp->message("Collecting methods");
+		interp->debug("Collecting methods");
         for(auto block : entity->get_impls()) {
             assert(block->kind == ast::ast_impl);
 
@@ -816,7 +816,7 @@ namespace mu {
                             return false;
                         }
                         else {
-							interp->message("Adding %s", function->get_name()->value().c_str());
+							interp->debug("Adding %s", function->get_name()->value().c_str());
                             add_entity(function);
 						}
                     } break;
@@ -830,7 +830,7 @@ namespace mu {
             }
         }
 			
-		interp->message("Resolving method entities");
+		interp->debug("Resolving method entities");
         for(auto fn : function_entities) {
             auto e = resolve_entity(fn);
             if(e) e->debug_print(interp->out_stream()); 
@@ -871,7 +871,7 @@ namespace mu {
 
 	std::tuple<std::vector<Local*>, bool> Typer::resolve_member_variable(ast::DeclPtr decl_ptr) {
         auto member = decl_ptr->as<ast::MemberVariable>();
-        interp->message("Resolving Memeber");
+        interp->debug("Resolving Memeber");
 		decl_ptr->renderer(&renderer);
 
         std::vector<Local*> entities;
@@ -893,7 +893,7 @@ namespace mu {
                 auto op = resolve_expr(i.get(), type);
 
                 if(op.error) {
-					interp->message("Error resolving expression");
+					interp->debug("Error resolving expression");
                     return std::make_tuple(entities, false);
 				}
 
@@ -936,7 +936,6 @@ namespace mu {
         else if(num_exprs == 0) {
             if(!type) {
                 report_str(member->pos(), "member variable must have type annotation or initialized");
-					interp->message("Error resolving expression");
                 return std::make_tuple(entities, false);
             }
 
@@ -1127,12 +1126,12 @@ namespace mu {
         expr->operand = result;
 
 //#if defined(MU_DEBUG)
-        interp->out_stream() << "*****************DEBUG: Expression Resulting type" << std::endl;
+        interp->debug("Expression Resulting type");
+		printf("\033[0;34m");
         expr->renderer(&renderer);
-        interp->out_stream() << "*****************DEBUG: TYPE: "
-			<< (result.type ? result.type->str() : "Error") << std::endl;
-        interp->out_stream() << "*****************DEBUG: Entity: "
-			<< (result.entity ? result.entity->full_path().str(): "null") << std::endl;
+		printf("\033[0m");
+        interp->debug("Type: %s", (result.type ? result.type->str().c_str() : "Error"));
+        interp->debug("Entity: %s", (result.entity ? result.entity->full_path().str().c_str(): "NULL"));
 //#endif
 
         return result;
@@ -1407,7 +1406,7 @@ namespace mu {
                 }
             }
             case ast::ast_name_generic: {
-                interp->message("Generics are not implemented at this time");
+                interp->debug("Generics are not implemented at this time");
                auto [op, entity] = resolve_name_generic_expr(expr->as<ast::NameGeneric>());
 				entity->set_used();
                return op;
@@ -1440,7 +1439,7 @@ namespace mu {
 
         auto type = operand.type;
 
-        interp->message("Accessor type: %s", type->str().c_str());
+        interp->debug("Accessor type: %s", type->str().c_str());
         // if type is a reference or pointer, then they must be dereferenced.
         if(type->is_ptr() || type->is_ref()) {
             type = type->base_type();
@@ -1689,6 +1688,10 @@ namespace mu {
 
             switch(actual->kind) {
                 case ast::ast_expr_binding: {
+					// this is broken.
+					interp->debug("Named Parameters are broken");
+					return std::make_tuple(resolved_actuals, false);
+
                     auto bind = actual->as<ast::BindingExpr>();
                     auto name = bind->name;
                     auto binded_expr = bind->expr.get();
@@ -1848,7 +1851,137 @@ namespace mu {
         return std::make_tuple(resolved_actuals, true);
     }
 
-	std::tuple<std::vector<Operand>, Entity*, Operand> Typer::resolve_method_actuals(ast::Method* method) {
+	std::tuple<std::vector<Operand>, Entity*, Operand> Typer::resolve_method_actuals(ast::Method* m) {
+		const auto& actuals = m->actuals;
+		auto name = m->name;
+		Operand res(m);
+		std::vector<Operand> resolved_actuals;
+		bool static_call = false;
+		
+		types::FunctionType* function_type = nullptr;
+		Function* method = nullptr;
+
+		auto result = resolve_expr(actuals[0].get());
+		if(result.error)
+			return std::make_tuple(resolved_actuals, nullptr, result);
+
+		resolved_actuals.push_back(result);
+
+		// this parameter determines the how this is processed.	
+		auto [mem, is_static, valid] = resolve_member_from_operand(result, name.get());
+		
+		interp->debug("resolve_method_from_operand: %s", (valid ? "true" : "false"));
+		// the error is reported by the previous method.
+		if(!valid)
+			return std::make_tuple(resolved_actuals, nullptr, result);
+		
+		static_call = is_static;
+		
+		interp->debug("Is static: %s", (static_call ? "true" : "false"));
+
+		auto type = result.type;
+		// if it is not a pointer, take a pointer to it.
+		if(!type->is_ptr())
+			type = interp->checked_new_type<types::Pointer>(type);
+		
+		interp->debug("");
+		if(mem->is_function()) {
+			method = mem->as<Function>(); // gets the function entity
+			function_type = method->get_type()->as<types::FunctionType>(); // gets the function type
+			// the found function is static but is being called from an lvalue.
+			if(method->is_static() and !is_static) {
+				report(name->pos(), "associated function '%s' cannot be called as a method",
+						method->get_name()->value().c_str());
+				return std::make_tuple(resolved_actuals, nullptr, result);
+			}
+			else if(method->is_method()) {
+				// the first element should be check
+				auto self = function_type->get_param(0);
+				if(!compatible_types(self, type)) {
+					report(result.expr->pos(), "expected receiver '%s' received type '%s'",
+							self->str().c_str(), type->str().c_str());
+					result.error = true;
+					return std::make_tuple(resolved_actuals, nullptr, result);
+				}
+			}
+		}
+
+		for(u32 i = 1; i < actuals.size(); ++i) {
+			u32 li = i;
+			if(static_call)
+				li--;
+			auto type = function_type->get_param(li);
+			auto result = resolve_expr(actuals[li].get(), type);
+			resolved_actuals.push_back(result);
+
+			if(result.error)
+				return std::make_tuple(resolved_actuals, nullptr, result);
+		}
+		
+		auto ret_type = function_type->get_ret();
+		res = Operand(ret_type, m, RValue);
+		return std::make_tuple(resolved_actuals, method, res);
+	}
+
+	std::tuple<Entity*, bool, bool> Typer::resolve_member_from_operand(Operand operand, ast::Expr* name) {
+		if(operand.type->is_ptr()) {
+			interp->debug("%s The resolved type is a pointer making sure this "
+					"works properly", __FUNCTION__);
+		}
+
+		auto operand_entity = operand.entity;
+		if(!operand_entity) {
+			interp->debug("Resolving method from an expression that did resolve to an entity. This is not implemented yet");
+		}
+		auto entity_type = operand_entity->get_type();
+
+		interp->debug("Found Entity Name: %s", operand_entity->get_name()->value().c_str());
+		interp->debug("Found Entity Type: %s", entity_type->str().c_str());
+
+		auto n = name->as<ast::Name>();
+
+		if(!name) {
+			report_str(name->pos(), "generics are not implemented at this time");
+			return std::make_tuple(nullptr, false, false);
+		}
+		
+		ScopePtr member_scope;
+		
+		// check the type of the resolved entity
+		switch(entity_type->kind()) {
+			case types::StructureType: {
+				auto type = entity_type->as<types::StructType>();
+				member_scope = type->get_scope();
+			} break;
+			case types::SType: {
+				// special case
+				//auto type = entity_type->as<
+				interp->debug("Accessing sum type as a call, this is calling a constructor of a sum type element");
+				return std::make_tuple(nullptr, false, false);
+			}
+			case types::TraitAttributeType: {
+				// directly access a method of a triat shouldn't be allowed. Unless it has a default implementation.
+				interp->debug("Accessing a triat type. to call its method. This shouldn't be allowed");
+				return std::make_tuple(nullptr, false, false);
+			} break;
+			default:
+				report(n->pos(), "'%s' is a non-accessable type: '%s'",
+					operand_entity->get_name()->value().c_str(),
+					entity_type->str().c_str());
+				return std::make_tuple(nullptr, false, false);
+		}
+
+		auto member = search_scope(member_scope, n->name);
+
+		if(!member) {
+			interp->debug("Entity Not found for name %s", n->name->value().c_str());
+		}
+		else {
+			interp->debug("Entity Found for name %s for type %s", n->name->value().c_str(), 
+					member->get_type()->str().c_str());
+		}
+
+		return std::make_tuple(member, operand.access == TypeAccess, true);
 	}
 
 
@@ -1918,92 +2051,11 @@ namespace mu {
     }
 
 	Operand Typer::resolve_method_call(ast::Expr* expr) {
-		Operand result(expr);
-		auto method = expr->as<ast::Method>();
-
-		// std::vector<ast::ExprPtr> actuals = {method->expr};
-		// for(auto a : method->actuals)
-		// 	actuals.push_back(a);
-	
 		// this call needs to do more than the other resolve actuals function because
 		// the method that is called is dependent on the first actual
+		auto method = expr->as<ast::Method>();
 		auto [actuals, method_entity, res] = resolve_method_actuals(method);
 		return res;
-
-
-/*
-		// resolve to the entity because we need to know scope when resolving it.
-		auto res = resolve_expr(method->expr.get());	
-
-		// If there was an error resolving the reciever.
-		if(res.error)
-			return res;
-
-		auto operand_entity = res.entity;
-		auto entity_type = operand_entity->get_type();
-
-		interp->message("Found Entity Name: %s", operand_entity->get_name()->value().c_str());
-		interp->message("Found Entity Type: %s", entity_type->str().c_str());
-
-		auto name = method->name->as<ast::Name>();
-
-		if(!name) {
-			report_str(method->name->pos(), "generics are not implemented at this time");
-			return result;
-		}
-		
-		ScopePtr member_scope;
-
-
-		
-		// check the type of the resolved entity
-		switch(entity_type->kind()) {
-			case types::StructureType: {
-				auto type = entity_type->as<types::StructType>();
-				member_scope = type->get_scope();
-			} break;
-			case types::SType: {
-				// special case
-				//auto type = entity_type->as<
-				interp->message("Accessing sum type as a call, this is calling a constructor of a sum type element");
-				return result;
-			}
-			case types::TraitAttributeType: {
-				// directly access a method of a triat shouldn't be allowed. Unless it has a default implementation.
-				interp->message("Accessing a triat type. to call its method. This shouldn't be allowed");
-			} break;
-			default:
-				report(method->expr->pos(), "'%s' is a non-accessable type: '%s'",
-					operand_entity->get_name()->value().c_str(),
-					entity_type->str().c_str());
-				break;
-					
-		}
-
-		auto member = search_scope(member_scope, name->name);
-
-		if(!member) {
-			interp->message("Entity Not found for name %s", name->name->value().c_str());
-		}
-		else {
-			interp->message("Entity Found for name %s for type %s", name->name->value().c_str(), 
-					member->get_type()->str().c_str());
-		}
-
-		// auto fn = member->as<Function>();
-		switch(res.access) {
-			case TypeAccess:
-				return resolve_static_method(operand_entity, member,
-						method->actuals, res, name);
-			case LValue:
-				return resolve_received_method(operand_entity, member,
-						method->actuals, res, name);
-			default:
-				break;
-		}
-
-*/
-		return Operand(expr);	 
 	}
 
     Operand Typer::resolve_cast(ast::Cast *expr) {

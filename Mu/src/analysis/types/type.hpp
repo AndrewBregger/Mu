@@ -285,7 +285,7 @@ namespace mu {
             template<typename Ty>
             Ty *get(u64 i) {
                 if (i < num_elements())
-                    return CAST_PTR(Ty, types[i]);
+                    return types[i]->as<Ty>();
                 else
                     return nullptr;
             }

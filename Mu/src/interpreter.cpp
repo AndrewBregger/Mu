@@ -383,6 +383,25 @@ bool Interpreter::equivalent_types(mu::types::Type *t1, mu::types::Type *t2) {
         case mu::types::TraitAttributeType:
             return equivalent_trait(CAST_PTR(mu::types::TraitType, t1),
                     CAST_PTR(mu::types::TraitType, t2));
+		case mu::types::PtrType:
+			return equivalent_types(t1->base_type(), t2->base_type());
+		case mu::types::TupleType: {
+			auto tt1 = t1->as<mu::types::Tuple>();
+			auto tt2 = t2->as<mu::types::Tuple>();
+
+			if(tt1->num_elements() != tt2->num_elements())
+				return false;
+		
+			bool valid = true;
+			for(u32 i = 0; tt1->num_elements(); ++i) {
+				valid = valid and equivalent_types(tt1->get_element_type(i),
+						tt2->get_element_type(i));
+
+				if(!valid)
+					return valid;
+			}
+			return valid;
+		}
         case mu::types::ModType:
             // this should be check path
         case mu::types::PolyFunctionType:

@@ -154,6 +154,8 @@ namespace mu {
             Operand resolve_call_or_curry(ast::Call* expr);
 
 			Operand resolve_method_call(ast::Expr* expr);
+
+			std::tuple<Entity*, bool, bool> resolve_member_from_operand(Operand operand, ast::Expr* name);
 	
 
 			// resolves a static method of Entity owner 

@@ -1,15 +1,16 @@
 Immediate Tasks:
-Method call expressions
+Trait Type Resolution
+Control Flow (If, While, Loop)
+Trait resolution for structure
+Casting
+
 
 Next Tasks:
 Fix the function type spec parsing
     it current is (...) -> ret
     it needs to be (...) ret
 	This is for consistency of function declaration and type signatures.
-Trait Type Resolution
-Trait resolution for structure
-Casting
-Control Flow (If, While, Loop)
+Test method calls
 Finish Pattern resolution (probabaly finish when I am implemented traits and sum types)
 Preliminary String implementation
 Preliminary Iterator implementation
@@ -30,3 +31,4 @@ Stmt resolution {expr, decl, empty}
 Local resolution
 Function resolution
 Basic satic method calls
+Method call expressions (basic)
