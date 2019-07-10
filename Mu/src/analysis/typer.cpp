@@ -862,6 +862,8 @@ namespace mu {
     }
 
     Entity* Typer::resolve_trait(Type* entity, ast::DeclPtr decl_ptr) {
+		auto trait = decl_ptr->as<ast::TraitClass>();
+
         return entity;
     }
 

@@ -1,14 +1,15 @@
 # Mu Programming Language
-Expression-based, multi-paradigm language with a focus on expressability of concurrent, distributed, and sequential applications.
+Expression-based, multi-paradigm language with a focus on expressability
+of concurrent, distributed, and sequential applications.
 
-The primary langauge will be similar to Rust and the type classes (traits), borrow checking, type inferencing using hindly milner. 
+The primary langauge will be similar to Rust and the type classes
+(traits), borrow checking, type inferencing using hindly milner. 
 An end goal is to make the language such that it works well with robots.
 
 # Main Features:
 * Powerful type system. Based on Haskell similar to Rust.
-* borrow checking,
 * type inference,
-* async/await,
+* async/await, futures
 * built-in or standard library support for message passing,
 * Immutable data by default.
 
@@ -16,12 +17,13 @@ An end goal is to make the language such that it works well with robots.
 ## Language Syntax
 ### Variable Declaration
 
-```
+```code
 let x = foo()      // x is constant
 mut x = foo()      // x is mutable
 ```
+
 #### Pattern Matching Declaration
-```
+```code
 mut (x, y) = foo()  // there is destructable types.
                     // This expects foo() to return a tuple
                     // of 2 elements where the first element
@@ -36,7 +38,7 @@ let [x:xs] = mu()   // Array pattern matching. The first element
 
 ### Function Declaration
 All functions are lambdas. They can be bounded to a name or used anonomously.
-```
+```code
 add: (x f32, y f32) f32 = x + y
 
 apply: (f (f32, f32)->f32, x f32, y f32) f32 = f(x, y)
@@ -44,7 +46,7 @@ apply(add, 1.0, 2.0)
 ```
 #### Function Attributes
 
-```
+```code
 @foreign("printf"), abi("C")
 printf: (fmt *u8, args ...)
 
@@ -58,7 +60,7 @@ printf: (fmt *u8, args ...)
 A function can be a modifier before the signiture. For now, this is limited to just inlining. In this future this could
 be used to implement the parallel features, but this could also be done the attributes.
 
-```
+```code
 foo: inline () = 0.0
 ```
 
@@ -70,7 +72,7 @@ in the function signiture. See the printf example above.
 The language will also have native variadics. There are two obvious flavors of this, variadic of the same type and
 variadic with different types. The syntax is shown below.
 
-```
+```code
 // Same type variadics.
 
 foo: (args int...) = ....
@@ -84,7 +86,7 @@ foo: [T...](args T...) = ....
 ### Type Declaration
 
 #### Structures or Product Types
-```
+```code
 Vector: struct {
     x f32,
     y f32
@@ -102,7 +104,7 @@ vec.1 // 2.0
 ```
 
 #### Enumerations or Sum Types
-```
+```code
 Expr: type {
     Name(string),
     IntConstant(i32),
@@ -114,7 +116,7 @@ Expr: type {
 ```
 
 #### Type Class (Type Attributes)
-```
+```code
 Read: trait {
     Elem: Type // this is an alias to a known type (placeholder in Rust)
     
@@ -127,7 +129,7 @@ Write: trait {
 ```
 
 A struct can subtype of a type class by the following syntax:
-```
+```code
 ReadFile: struct < Read {
 }
 
@@ -141,7 +143,7 @@ File: struct < Write, Read {
 
 #### Methods
 
-```
+```code
 File: impl {
     read: (self, buffer *u32, len u32)u32 {
         read(self.fd, buffer, len)

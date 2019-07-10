@@ -30,5 +30,5 @@ Impl block resolution
 Stmt resolution {expr, decl, empty}
 Local resolution
 Function resolution
-Basic satic method calls
+Basic static method calls
 Method call expressions (basic)
